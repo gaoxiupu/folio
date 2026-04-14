@@ -32,3 +32,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.playwright-mcp/page-2026-04-14T14-19-00-858Z.png
+.playwright-mcp/page-2026-04-14T14-19-19-269Z.png
+.playwright-mcp/page-2026-04-14T14-19-17-315Z.yml
+.playwright-mcp/page-2026-04-14T14-17-48-332Z.yml
+.playwright-mcp/console-2026-04-14T14-19-16-423Z.log
+.playwright-mcp/console-2026-04-14T14-17-43-462Z.log
+.gitignore

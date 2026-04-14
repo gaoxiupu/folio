@@ -7,9 +7,6 @@ import { useEffect, useRef } from "react";
 const QUICK_QUESTIONS = ["你做过什么项目", "你擅长什么", "怎么联系你"];
 
 // ── Project card parser ──────────────────────────────────────────────────────
-// Detects lines like:  **Title**: one-line description
-// or:                  - **Title**: one-line description
-// If ≥2 such lines exist in a message, they render as cards; rest as text.
 
 type Segment =
   | { type: "text"; text: string }
@@ -57,11 +54,11 @@ function ProjectCard({
   description: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm my-1 first:mt-0 last:mb-0">
-      <p className="text-[13px] font-semibold text-gray-900 leading-snug">
+    <div className="rounded-xl border border-stone-200 border-l-2 border-l-indigo-400 bg-white hover:bg-indigo-50 transition-colors px-3 py-2.5 my-1 first:mt-0 last:mb-0">
+      <p className="text-[13px] font-semibold text-stone-900 leading-snug">
         {title}
       </p>
-      <p className="text-[12px] text-gray-500 mt-0.5 leading-relaxed">
+      <p className="text-[12px] text-stone-500 mt-0.5 leading-relaxed">
         {description}
       </p>
     </div>
@@ -72,7 +69,7 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
   if (role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-gray-900 text-white px-3.5 py-2 text-[13px] leading-relaxed">
+        <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-indigo-500 text-white px-3.5 py-2 text-[13px] leading-relaxed animate-fade-slide-up">
           {content}
         </div>
       </div>
@@ -95,7 +92,7 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
           ) : seg.text ? (
             <div
               key={i}
-              className="rounded-2xl rounded-bl-sm bg-gray-100 text-gray-800 px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap"
+              className="rounded-2xl rounded-bl-sm bg-white border border-stone-200 text-stone-800 px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap animate-fade-slide-up"
             >
               {seg.text}
             </div>
@@ -109,12 +106,12 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
+      <div className="bg-white border border-stone-200 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
         <span className="flex gap-1 items-center">
           {[0, 150, 300].map((delay) => (
             <span
               key={delay}
-              className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+              className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
               style={{ animationDelay: `${delay}ms` }}
             />
           ))}
@@ -143,29 +140,35 @@ export default function WidgetPage() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-screen bg-white font-sans text-sm">
+    <div className="flex flex-col h-screen bg-[#fafaf8] font-sans text-sm">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-gray-100 bg-white">
-        <h1 className="text-[13px] font-semibold text-gray-900">
-          Ask me anything
-        </h1>
-        <p className="text-[11px] text-gray-400 mt-0.5">Powered by AI</p>
+      <div className="shrink-0 px-4 py-3 border-b border-stone-200 bg-white flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[13px] font-bold shrink-0">
+          A
+        </div>
+        <div>
+          <h1 className="text-[13px] font-semibold text-stone-900">
+            Hi, I&apos;m here to help
+          </h1>
+          <p className="text-[11px] text-stone-400 mt-0.5">
+            Ask me about this person
+          </p>
+        </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5">
         {isEmpty ? (
           <div className="flex flex-col items-center gap-5 mt-6">
-            <p className="text-[12px] text-gray-400 text-center px-4">
-              Hi! Ask me about this person's projects, skills, or how to reach
-              them.
+            <p className="text-[12px] text-stone-400 text-center px-4">
+              What would you like to know? Pick a question or type your own.
             </p>
-            <div className="flex flex-col gap-2 w-full">
+            <div className="flex flex-wrap gap-2 justify-center">
               {QUICK_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => sendQuick(q)}
-                  className="w-full text-left text-[13px] text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 transition-colors"
+                  className="text-[12px] text-stone-600 bg-stone-100 hover:bg-white hover:border-indigo-400 border border-stone-200 rounded-full px-3.5 py-1.5 transition-colors cursor-pointer"
                 >
                   {q}
                 </button>
@@ -184,10 +187,10 @@ export default function WidgetPage() {
       {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 px-3 py-3 border-t border-gray-100 flex gap-2 items-center bg-white"
+        className="shrink-0 px-3 py-3 border-t border-stone-200 flex gap-2 items-center bg-white"
       >
         <input
-          className="flex-1 text-[13px] bg-gray-100 rounded-full px-4 py-2 outline-none placeholder-gray-400 focus:ring-1 focus:ring-gray-300 transition"
+          className="flex-1 text-[13px] bg-stone-100 text-stone-800 rounded-full px-4 py-2 outline-none placeholder-stone-400 focus:ring-1 focus:ring-indigo-300 transition"
           value={input}
           onChange={handleInputChange}
           placeholder="Type a message…"
@@ -197,7 +200,7 @@ export default function WidgetPage() {
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-gray-900 text-white disabled:opacity-35 hover:bg-gray-700 transition-colors"
+          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-indigo-500 text-white disabled:opacity-35 hover:bg-indigo-600 transition-colors"
         >
           <SendHorizonal size={14} />
         </button>
