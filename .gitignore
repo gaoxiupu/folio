@@ -20,6 +20,15 @@ build/
 # vector store (auto-generated)
 vector.db
 
+# personal data (kept in `personal` branch)
+knowledge/card.json
+knowledge/persona.md
+knowledge/socials.json
+knowledge/github.json
+knowledge/skills.json
+knowledge/*.pdf
+public/avatar.jpg
+
 # auto-generated knowledge artifacts
 knowledge/.github-cache.json
 knowledge/messages.json

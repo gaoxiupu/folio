@@ -1,0 +1,10 @@
+{
+  "axes": [
+    { "label": "Frontend", "value": 80 },
+    { "label": "Backend", "value": 70 },
+    { "label": "DevOps", "value": 60 },
+    { "label": "Design", "value": 75 },
+    { "label": "Communication", "value": 85 },
+    { "label": "Leadership", "value": 70 }
+  ]
+}
