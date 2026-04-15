@@ -6,8 +6,11 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Layer 4: Origin/Referrer protection for POST /api/chat
-  if (request.method === "POST" && pathname === "/api/chat") {
+  // Layer 4: Origin/Referrer protection for POST /api/chat and /api/message
+  if (
+    request.method === "POST" &&
+    (pathname === "/api/chat" || pathname === "/api/message")
+  ) {
     const origin = request.headers.get("origin");
     const referer = request.headers.get("referer");
     const baseUrl =
@@ -85,5 +88,10 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/chat/:path*", "/widget", "/api/widget"],
+  matcher: [
+    "/api/chat/:path*",
+    "/api/message/:path*",
+    "/widget",
+    "/api/widget",
+  ],
 };

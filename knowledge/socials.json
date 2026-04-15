@@ -1,4 +1,7 @@
 [
-  { "platform": "GitHub", "url": "https://github.com/gaoxiupu", "handle": "@gaoxp" },
-  { "platform": "小红书", "url": "https://xiaohongshu.com/user/profile/gaoxp", "handle": "gaoxp的设计日记" }
+  {
+    "platform": "GitHub",
+    "url": "https://github.com/gaoxiupu",
+    "handle": "@gaoxiupu"
+  }
 ]

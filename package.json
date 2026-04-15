@@ -21,7 +21,6 @@
     "react": "^18",
     "react-dom": "^18",
     "sqlite-vec": "^0.1.9",
-    "sqlite-vec-windows-x64": "^0.1.9",
     "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {

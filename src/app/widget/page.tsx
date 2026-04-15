@@ -71,6 +71,11 @@ type Segment =
     }
   | { type: "skills"; categories: SkillCategory[] }
   | {
+      type: "skills-radar";
+      title?: string;
+      axes: { label: string; value: number }[];
+    }
+  | {
       type: "card";
       name: string;
       title?: string;
@@ -81,6 +86,17 @@ type Segment =
       github?: string;
       linkedin?: string;
       wechat?: string;
+    }
+  | { type: "message-form"; title?: string; hint?: string }
+  | {
+      type: "github";
+      username: string;
+      name?: string;
+      bio?: string;
+      followers?: number;
+      public_repos?: number;
+      top_languages?: { name: string; percent: number }[];
+      top_repos?: { name: string; description?: string; stars: number; url: string }[];
     };
 
 function parseKV(body: string): Record<string, string> {
@@ -170,12 +186,84 @@ function parseBlock(kind: string, body: string): Segment | null {
     };
   }
 
+  if (kind === "message-form") {
+    const kv = parseKV(body);
+    return {
+      type: "message-form",
+      title: kv.title || undefined,
+      hint: kv.hint || undefined,
+    };
+  }
+
+  if (kind === "skills-radar") {
+    const kv = parseKV(body);
+    const axes: { label: string; value: number }[] = [];
+    // axes can be provided as "axes: Label1:80, Label2:60, Label3:90"
+    if (kv.axes) {
+      for (const part of kv.axes.split(",")) {
+        const [labelRaw, valRaw] = part.split(":");
+        if (!labelRaw || !valRaw) continue;
+        const v = parseInt(valRaw.trim(), 10);
+        if (!Number.isFinite(v)) continue;
+        axes.push({ label: labelRaw.trim(), value: Math.max(0, Math.min(100, v)) });
+      }
+    }
+    if (axes.length < 3) return null;
+    return {
+      type: "skills-radar",
+      title: kv.title || undefined,
+      axes,
+    };
+  }
+
+  if (kind === "github") {
+    const kv = parseKV(body);
+    if (!kv.username) return null;
+    const parseLangs = (s?: string) => {
+      if (!s) return undefined;
+      const out: { name: string; percent: number }[] = [];
+      for (const part of s.split(",")) {
+        const [nameRaw, pctRaw] = part.split(":");
+        if (!nameRaw || !pctRaw) continue;
+        const p = parseFloat(pctRaw);
+        if (!Number.isFinite(p)) continue;
+        out.push({ name: nameRaw.trim(), percent: p });
+      }
+      return out.length > 0 ? out : undefined;
+    };
+    const parseRepos = (s?: string) => {
+      if (!s) return undefined;
+      try {
+        const arr = JSON.parse(s);
+        if (!Array.isArray(arr)) return undefined;
+        return arr
+          .filter(
+            (r: unknown): r is { name: string; stars: number; url: string; description?: string } =>
+              typeof r === "object" && r !== null && "name" in r && "url" in r,
+          )
+          .slice(0, 5);
+      } catch {
+        return undefined;
+      }
+    };
+    return {
+      type: "github",
+      username: kv.username,
+      name: kv.name || undefined,
+      bio: kv.bio || undefined,
+      followers: kv.followers ? parseInt(kv.followers, 10) : undefined,
+      public_repos: kv.public_repos ? parseInt(kv.public_repos, 10) : undefined,
+      top_languages: parseLangs(kv.top_languages),
+      top_repos: parseRepos(kv.top_repos),
+    };
+  }
+
   return null;
 }
 
 function parseSegments(content: string): Segment[] {
   const segments: Segment[] = [];
-  const blockRe = /:::(\w+)\n([\s\S]*?)\n:::/g;
+  const blockRe = /:::([\w-]+)\n([\s\S]*?)\n:::/g;
   let lastIdx = 0;
   let match: RegExpExecArray | null;
 
@@ -530,6 +618,325 @@ function BusinessCard({
   );
 }
 
+function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [msg, setMsg] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const canSubmit =
+    status !== "sending" &&
+    status !== "sent" &&
+    name.trim().length > 0 &&
+    contact.trim().length > 0 &&
+    msg.trim().length > 0;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setStatus("sending");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, contact, message: msg }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.error || "Failed to send. Please try again.");
+        setStatus("error");
+        return;
+      }
+      setStatus("sent");
+    } catch {
+      setErrorMsg("Network error. Please try again.");
+      setStatus("error");
+    }
+  };
+
+  if (status === "sent") {
+    return (
+      <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-folio-ink">
+          <Check size={14} className="text-folio-accent" />
+          <span>Message sent</span>
+        </div>
+        <p className="text-[12px] text-folio-muted mt-1 leading-relaxed">
+          Thanks! I&apos;ll pass it along — expect a reply soon.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
+      {title && (
+        <p className="text-[13px] font-semibold text-folio-ink leading-snug">
+          {title}
+        </p>
+      )}
+      {hint && (
+        <p className="text-[12px] text-folio-muted mt-0.5 leading-relaxed">
+          {hint}
+        </p>
+      )}
+      <div className="mt-2.5 flex flex-col gap-1.5">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+          maxLength={80}
+          disabled={status === "sending"}
+          className="text-[12px] bg-folio-bg border border-folio-border rounded px-2 py-1.5 text-folio-ink outline-none focus:border-folio-accent placeholder-folio-muted"
+        />
+        <input
+          type="text"
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Email or other contact"
+          maxLength={200}
+          disabled={status === "sending"}
+          className="text-[12px] bg-folio-bg border border-folio-border rounded px-2 py-1.5 text-folio-ink outline-none focus:border-folio-accent placeholder-folio-muted"
+        />
+        <textarea
+          value={msg}
+          onChange={(e) => setMsg(e.target.value)}
+          placeholder="Your message…"
+          maxLength={2000}
+          rows={3}
+          disabled={status === "sending"}
+          className="text-[12px] bg-folio-bg border border-folio-border rounded px-2 py-1.5 text-folio-ink outline-none focus:border-folio-accent placeholder-folio-muted resize-none leading-relaxed"
+        />
+      </div>
+      {status === "error" && errorMsg && (
+        <p className="mt-1.5 text-[11px] text-red-600">{errorMsg}</p>
+      )}
+      <button
+        onClick={submit}
+        disabled={!canSubmit}
+        className="mt-2 w-full text-[12px] font-medium bg-folio-accent text-white rounded px-3 py-1.5 hover:bg-[#2F2D2A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+      >
+        {status === "sending" ? "Sending…" : "Send message"}
+      </button>
+    </div>
+  );
+}
+
+function SkillsRadarCard({
+  title,
+  axes,
+}: {
+  title?: string;
+  axes: { label: string; value: number }[];
+}) {
+  const size = 280;
+  const center = size / 2;
+  const radius = 80;
+  const labelOffset = 16;
+  const rings = 4;
+  const n = axes.length;
+
+  const angleFor = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+
+  const axisPoints = axes.map((_, i) => {
+    const a = angleFor(i);
+    return { x: center + Math.cos(a) * radius, y: center + Math.sin(a) * radius };
+  });
+
+  const dataPoints = axes.map((axis, i) => {
+    const a = angleFor(i);
+    const r = (axis.value / 100) * radius;
+    return { x: center + Math.cos(a) * r, y: center + Math.sin(a) * r };
+  });
+
+  const dataPath = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
+
+  const anchorFor = (cosA: number) => {
+    if (cosA > 0.25) return "start";
+    if (cosA < -0.25) return "end";
+    return "middle";
+  };
+
+  const baselineFor = (sinA: number) => {
+    if (sinA > 0.25) return "hanging";
+    if (sinA < -0.25) return "auto";
+    return "middle";
+  };
+
+  return (
+    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
+      {title && (
+        <p className="text-[13px] font-semibold text-folio-ink leading-snug mb-1">
+          {title}
+        </p>
+      )}
+      <div className="flex justify-center">
+        <svg
+          width="100%"
+          height="auto"
+          viewBox={`0 0 ${size} ${size}`}
+          style={{ maxWidth: size }}
+        >
+          {/* concentric rings */}
+          {Array.from({ length: rings }).map((_, ringIdx) => {
+            const r = radius * ((ringIdx + 1) / rings);
+            const pts = axes
+              .map((_, i) => {
+                const a = angleFor(i);
+                return `${center + Math.cos(a) * r},${center + Math.sin(a) * r}`;
+              })
+              .join(" ");
+            return (
+              <polygon
+                key={ringIdx}
+                points={pts}
+                fill="none"
+                stroke="rgba(55,53,47,0.12)"
+                strokeWidth={1}
+              />
+            );
+          })}
+          {/* axis lines */}
+          {axisPoints.map((p, i) => (
+            <line
+              key={i}
+              x1={center}
+              y1={center}
+              x2={p.x}
+              y2={p.y}
+              stroke="rgba(55,53,47,0.12)"
+              strokeWidth={1}
+            />
+          ))}
+          {/* data polygon */}
+          <path
+            d={dataPath}
+            fill="rgba(99,102,241,0.22)"
+            stroke="rgb(99,102,241)"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+          {dataPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={2.5} fill="rgb(99,102,241)" />
+          ))}
+          {/* labels */}
+          {axes.map((axis, i) => {
+            const a = angleFor(i);
+            const cosA = Math.cos(a);
+            const sinA = Math.sin(a);
+            const lr = radius + labelOffset;
+            const x = center + cosA * lr;
+            const y = center + sinA * lr;
+            return (
+              <text
+                key={i}
+                x={x}
+                y={y}
+                textAnchor={anchorFor(cosA)}
+                dominantBaseline={baselineFor(sinA)}
+                fontSize={11}
+                fontWeight={500}
+                fill="rgb(55,53,47)"
+              >
+                {axis.label}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function GithubCard({
+  username,
+  name,
+  bio,
+  followers,
+  public_repos,
+  top_languages,
+  top_repos,
+}: {
+  username: string;
+  name?: string;
+  bio?: string;
+  followers?: number;
+  public_repos?: number;
+  top_languages?: { name: string; percent: number }[];
+  top_repos?: { name: string; description?: string; stars: number; url: string }[];
+}) {
+  return (
+    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
+      <div className="flex items-center gap-2">
+        <Github size={15} className="text-folio-ink" />
+        <a
+          href={`https://github.com/${username}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[13px] font-semibold text-folio-ink hover:text-folio-accent transition-colors"
+        >
+          {name || username}
+        </a>
+        <span className="text-[11px] text-folio-muted">@{username}</span>
+      </div>
+      {bio && (
+        <p className="text-[12px] text-folio-muted mt-1 leading-relaxed">{bio}</p>
+      )}
+      {(followers !== undefined || public_repos !== undefined) && (
+        <div className="flex gap-3 mt-1.5 text-[11px] text-folio-muted">
+          {public_repos !== undefined && <span>📦 {public_repos} repos</span>}
+          {followers !== undefined && <span>👥 {followers} followers</span>}
+        </div>
+      )}
+      {top_languages && top_languages.length > 0 && (
+        <div className="mt-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-folio-muted">
+            Top languages
+          </p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {top_languages.map((l) => (
+              <span
+                key={l.name}
+                className="text-[11px] font-medium text-folio-ink bg-folio-bg border border-folio-border rounded px-2 py-0.5"
+              >
+                {l.name} {Math.round(l.percent)}%
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {top_repos && top_repos.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {top_repos.map((r) => (
+            <li key={r.url}>
+              <a
+                href={r.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block rounded px-2 py-1 hover:bg-folio-bg transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-medium text-folio-ink group-hover:text-folio-accent truncate">
+                    {r.name}
+                  </span>
+                  <span className="text-[11px] text-folio-muted shrink-0">★ {r.stars}</span>
+                </div>
+                {r.description && (
+                  <p className="text-[11px] text-folio-muted leading-snug truncate">
+                    {r.description}
+                  </p>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function MessageBubble({ content, role, onLearnMore }: { content: string; role: string; onLearnMore?: (name: string) => void }) {
   if (role === "user") {
     return (
@@ -597,6 +1004,23 @@ function MessageBubble({ content, role, onLearnMore }: { content: string; role: 
                 github={seg.github}
                 linkedin={seg.linkedin}
                 wechat={seg.wechat}
+              />
+            );
+          if (seg.type === "message-form")
+            return <MessageFormCard key={i} title={seg.title} hint={seg.hint} />;
+          if (seg.type === "skills-radar")
+            return <SkillsRadarCard key={i} title={seg.title} axes={seg.axes} />;
+          if (seg.type === "github")
+            return (
+              <GithubCard
+                key={i}
+                username={seg.username}
+                name={seg.name}
+                bio={seg.bio}
+                followers={seg.followers}
+                public_repos={seg.public_repos}
+                top_languages={seg.top_languages}
+                top_repos={seg.top_repos}
               />
             );
           if (seg.text)

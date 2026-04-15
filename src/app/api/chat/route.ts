@@ -3,7 +3,8 @@ import { streamText } from "ai";
 import { retrieve } from "@/lib/retriever";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkDailyBudget } from "@/lib/cost-limit";
-import { loadPersona, loadSocials, loadCard } from "@/lib/knowledge-config";
+import { loadPersona, loadSocials, loadCard, loadSkills } from "@/lib/knowledge-config";
+import { loadGithubSnapshot } from "@/lib/github-sync";
 
 export const runtime = "nodejs";
 
@@ -105,6 +106,8 @@ export async function POST(req: Request) {
   const personaContent = loadPersona();
   const socialLinks = loadSocials();
   const cardData = loadCard();
+  const skillsData = loadSkills();
+  const githubSnapshot = loadGithubSnapshot();
 
   const suggestionsInstruction = `
 
@@ -129,7 +132,76 @@ Keep each question under 24 characters.`;
     ? `Digital business card data (use when visitor asks for contact card, business card, or how to reach the owner):\n${JSON.stringify(cardData, null, 2)}\nWhen emitting a business card, use this block format (only include fields that have values):\n:::card\nname: <value>\ntitle: <value>\ncompany: <value>\nemail: <value>\nphone: <value>\nwebsite: <value>\ngithub: <value>\nlinkedin: <value>\nwechat: <value>\n:::\n\n`
     : "";
 
-  const dynamicPrefix = personaPrefix + socialInstruction + cardInstruction;
+  const messageFormInstruction = `Leave-a-message feature:
+When the visitor expresses intent to leave a message, contact the owner for collaboration, offer opportunities, or say they want the owner to follow up, respond warmly and emit a leave-message form card using this exact block (no prose inside the block):
+:::message-form
+title: <short encouraging title in visitor's language>
+hint: <one-line hint explaining what to fill>
+:::
+Do NOT fabricate names or contact details. The form collects them from the visitor.
+Only emit this block when the intent is clear; otherwise answer normally.
+
+`;
+
+  const skillsRadarInstruction = skillsData && skillsData.length >= 3
+    ? `Skills radar data:
+${skillsData.map((s) => `- ${s.label}: ${s.value}`).join("\n")}
+When the visitor asks about skills at a glance, skill strengths, a capability overview, or wants to compare skill areas, emit a radar chart using this exact block (values 0-100, at least 3 axes):
+:::skills-radar
+title: <short title in visitor's language>
+axes: <label1>:<value1>, <label2>:<value2>, <label3>:<value3>
+:::
+Use the values above; do not invent new ones. You may still use :::skills for categorized lists when the visitor asks for detail.
+
+`
+    : "";
+
+  const githubInstruction = githubSnapshot
+    ? `GitHub profile snapshot (use when visitor asks about GitHub, open source, repos, coding activity):
+${JSON.stringify(
+  {
+    username: githubSnapshot.profile.login,
+    name: githubSnapshot.profile.name,
+    bio: githubSnapshot.profile.bio,
+    public_repos: githubSnapshot.profile.public_repos,
+    followers: githubSnapshot.profile.followers,
+    top_languages: githubSnapshot.top_languages.map((l) => ({
+      name: l.name,
+      percent: Math.round(l.percent),
+    })),
+    top_repos: githubSnapshot.top_repos.map((r) => ({
+      name: r.name,
+      description: r.description,
+      stars: r.stars,
+      url: r.url,
+    })),
+    highlights: githubSnapshot.highlights.map((r) => r.name),
+  },
+  null,
+  2,
+)}
+When showing GitHub info, emit this exact block (omit fields you don't have):
+:::github
+username: <login>
+name: <full name, optional>
+bio: <bio, optional>
+followers: <number, optional>
+public_repos: <number, optional>
+top_languages: <Lang1:pct, Lang2:pct, Lang3:pct>
+top_repos: <JSON array of up to 5 repos, each {"name","description","stars","url"}>
+:::
+Use only the data provided above. Do not fabricate repos or stats.
+
+`
+    : "";
+
+  const dynamicPrefix =
+    personaPrefix +
+    socialInstruction +
+    cardInstruction +
+    messageFormInstruction +
+    skillsRadarInstruction +
+    githubInstruction;
 
   const noContext = context.trim().length === 0;
   const systemPrompt = noContext
