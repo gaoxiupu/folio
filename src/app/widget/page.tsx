@@ -1,14 +1,16 @@
 "use client";
 
 import { useChat } from "ai/react";
+import Image from "next/image";
 import {
+  ChevronRight,
   ExternalLink,
   Github,
   Linkedin,
   Mail,
   SendHorizonal,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 const QUICK_ACTIONS = [
   { label: "My Work", query: "Tell me about your projects" },
@@ -347,6 +349,18 @@ export default function WidgetPage() {
     useChat({ api: "/api/chat" });
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 4 * 20 + 16)}px`;
+  }, []);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [input, adjustHeight]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -368,15 +382,15 @@ export default function WidgetPage() {
     <div className="flex flex-col h-screen bg-folio-bg font-sans text-sm">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 border-b border-folio-border bg-folio-surface flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full border-2 border-folio-accent flex items-center justify-center text-folio-accent text-[13px] font-bold shrink-0">
-          A
+        <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+          <Image src="/avatar.jpg" alt="PaulBot" width={32} height={32} className="w-full h-full object-cover" />
         </div>
         <div>
           <h1 className="text-[13px] font-semibold text-folio-ink">
-            Hi, I&apos;m here to help
+            PaulBot
           </h1>
           <p className="text-[11px] text-folio-muted mt-0.5">
-            Ask me about this person
+            Ask me about Paul.
           </p>
         </div>
       </div>
@@ -384,34 +398,39 @@ export default function WidgetPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5">
         {isEmpty ? (
-          <div className="flex flex-col items-center gap-3 mt-8 px-4">
-            <p className="text-[12px] text-folio-muted text-center leading-relaxed">
-              Welcome! Pick a topic below or ask me anything about this person.
-            </p>
+          <div className="flex justify-start gap-2 mt-4 animate-fade-slide-up">
+            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 mt-0.5">
+              <Image src="/avatar.jpg" alt="PaulBot" width={28} height={28} className="w-full h-full object-cover" />
+            </div>
+            <div className="rounded-2xl rounded-bl-sm bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed max-w-[88%]">
+              <p>Hi there! 👋 I&apos;m <strong>PaulBot</strong>, Paul&apos;s AI assistant.</p>
+              <p className="mt-1.5">Feel free to ask me anything about Paul — his projects, skills, experience, or how to get in touch.</p>
+            </div>
           </div>
         ) : (
           messages.map((m) => (
             <MessageBubble key={m.id} content={m.content} role={m.role} />
           ))
         )}
+        {activeSuggestions.length > 0 && !isLoading && (
+          <div className="flex justify-start">
+            <div className="max-w-[88%] flex flex-col gap-1.5 mt-1 animate-fade-slide-up">
+              {activeSuggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => sendQuick(s)}
+                  className="flex items-center justify-between rounded-lg bg-folio-bg hover:bg-folio-accent-lt px-3 py-1.5 text-[12px] text-folio-muted hover:text-folio-ink transition-colors cursor-pointer"
+                >
+                  <span>{s}</span>
+                  <ChevronRight size={12} className="text-folio-border" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {isLoading && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
-
-      {/* Dynamic suggestion pills (post-response) */}
-      {activeSuggestions.length > 0 && (
-        <div className="shrink-0 px-3 pt-2 pb-0.5 flex flex-wrap gap-1.5 bg-folio-surface border-t border-folio-border animate-fade-slide-up">
-          {activeSuggestions.map((s) => (
-            <button
-              key={s}
-              onClick={() => sendQuick(s)}
-              className="text-[11px] font-medium text-folio-accent bg-folio-accent-lt border border-amber-300 hover:bg-amber-200 rounded-full px-3 py-1 transition-colors cursor-pointer"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Persistent quick actions row */}
       <div
@@ -433,24 +452,39 @@ export default function WidgetPage() {
 
       {/* Input */}
       <form
-        onSubmit={handleSubmit}
-        className="shrink-0 px-3 pt-2 pb-3 flex gap-2 items-center bg-folio-surface"
+        onSubmit={(e) => {
+          handleSubmit(e);
+          adjustHeight();
+        }}
+        className="shrink-0 px-3 pt-2 pb-3 bg-folio-surface"
       >
-        <input
-          className="flex-1 text-[13px] bg-folio-bg text-folio-ink rounded-full px-4 py-2 outline-none placeholder-folio-muted focus:ring-1 focus:ring-amber-400 transition"
-          value={input}
-          onChange={handleInputChange}
-          placeholder="Type a message…"
-          disabled={isLoading}
-          autoFocus
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-folio-accent text-white disabled:opacity-35 hover:bg-amber-700 transition-colors"
-        >
-          <SendHorizonal size={14} />
-        </button>
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            className="w-full text-[13px] bg-folio-bg text-folio-ink rounded-2xl px-4 py-2.5 pr-11 outline-none placeholder-folio-muted focus:ring-1 focus:ring-amber-400 transition resize-none overflow-y-auto leading-[20px] min-h-[56px] max-h-[96px]"
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Type a message…"
+            disabled={isLoading}
+            autoFocus
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                (e.target as HTMLTextAreaElement).form?.requestSubmit();
+              }
+            }}
+          />
+          {input.trim() && (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="absolute right-2 bottom-2 w-7 h-7 flex items-center justify-center rounded-full bg-folio-accent text-white hover:bg-amber-700 transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+            >
+              <SendHorizonal size={13} />
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
