@@ -1,6 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { retrieve } from "@/lib/retriever";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkDailyBudget } from "@/lib/cost-limit";
 
 export const runtime = "nodejs";
 
@@ -9,11 +11,94 @@ const ark = createOpenAI({
   apiKey: process.env.ARK_API_KEY,
 });
 
-export async function POST(req: Request) {
-  const { messages } = await req.json();
+function jsonError(status: number, error: string) {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-  const lastMessage = messages[messages.length - 1];
-  const context = await retrieve(lastMessage.content);
+export async function POST(req: Request) {
+  // ── Layer 1: Content-Type gate ───────────────────────────────────────────
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return jsonError(415, "Invalid request format.");
+  }
+
+  // ── Layer 2: Safe body parsing + validation ──────────────────────────────
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonError(400, "Could not read your message.");
+  }
+
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !Array.isArray((body as Record<string, unknown>).messages)
+  ) {
+    return jsonError(422, "Invalid message format.");
+  }
+
+  const { messages } = body as {
+    messages: { role: string; content: string }[];
+  };
+
+  if (messages.length === 0 || messages.length > 50) {
+    return jsonError(
+      422,
+      messages.length === 0
+        ? "Please type a message."
+        : "This conversation is getting long. Please start a new chat.",
+    );
+  }
+
+  const last = messages[messages.length - 1];
+  if (last.role !== "user" || typeof last.content !== "string") {
+    return jsonError(422, "Invalid message format.");
+  }
+
+  const userMessage = last.content.trim();
+  if (userMessage.length === 0) {
+    return jsonError(422, "Please type a message.");
+  }
+  if (userMessage.length > 2000) {
+    return jsonError(
+      422,
+      "That's quite long! Please keep your message under 2000 characters.",
+    );
+  }
+
+  // ── Layer 3: IP rate limiting ────────────────────────────────────────────
+  const ip = getClientIp(req);
+  const rateResult = checkRateLimit(ip);
+  if (!rateResult.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: "I'm taking a short break. Please try again in a moment.",
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(rateResult.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
+  // ── Layer 4: Daily API budget ────────────────────────────────────────────
+  const budgetResult = checkDailyBudget();
+  if (!budgetResult.allowed) {
+    return jsonError(
+      503,
+      "I've reached my daily chat limit. Please come back tomorrow!",
+    );
+  }
+
+  // ── RAG + LLM ────────────────────────────────────────────────────────────
+  const context = await retrieve(userMessage);
 
   const suggestionsInstruction = `
 
@@ -81,7 +166,7 @@ ${context}${suggestionsInstruction}`;
   const result = await streamText({
     model: ark("doubao-seed-2-0-pro-260215"),
     system: systemPrompt,
-    messages,
+    messages: messages as Parameters<typeof streamText>[0]["messages"],
   });
 
   return result.toDataStreamResponse();
