@@ -1,45 +1,141 @@
 "use client";
 
 import { useChat } from "ai/react";
-import { SendHorizonal } from "lucide-react";
+import {
+  ExternalLink,
+  Github,
+  Linkedin,
+  Mail,
+  SendHorizonal,
+} from "lucide-react";
 import { useEffect, useRef } from "react";
 
-const QUICK_QUESTIONS = ["你做过什么项目", "你擅长什么", "怎么联系你"];
+const QUICK_ACTIONS = [
+  { label: "My Work", query: "Tell me about your projects" },
+  { label: "Experience", query: "What's your work experience?" },
+  { label: "Skills", query: "What are your technical skills?" },
+  { label: "Contact", query: "How can I get in touch?" },
+];
 
-// ── Project card parser ──────────────────────────────────────────────────────
+// ── Suggestion tag helpers ───────────────────────────────────────────────────
+
+function getDisplayContent(content: string): string {
+  const idx = content.indexOf("<suggestions>");
+  return idx === -1 ? content : content.slice(0, idx).trimEnd();
+}
+
+function parseSuggestions(content: string): string[] {
+  const match = content.match(/<suggestions>([\s\S]*?)<\/suggestions>/);
+  if (!match) return [];
+  try {
+    const arr = JSON.parse(match[1]);
+    return Array.isArray(arr) ? arr.filter((s) => typeof s === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+// ── Rich card parser (::block::) ─────────────────────────────────────────────
+
+type SkillCategory = { label: string; items: string[] };
 
 type Segment =
   | { type: "text"; text: string }
-  | { type: "card"; title: string; description: string };
+  | {
+      type: "project";
+      name: string;
+      description: string;
+      tech: string[];
+      link?: string;
+    }
+  | {
+      type: "contact";
+      name: string;
+      email?: string;
+      github?: string;
+      linkedin?: string;
+    }
+  | { type: "skills"; categories: SkillCategory[] };
+
+function parseKV(body: string): Record<string, string> {
+  const kv: Record<string, string> = {};
+  for (const line of body.split("\n")) {
+    const m = line.match(/^(\w+):\s*(.*)$/);
+    if (m) kv[m[1]] = m[2].trim();
+  }
+  return kv;
+}
+
+function parseBlock(kind: string, body: string): Segment | null {
+  if (kind === "project") {
+    const kv = parseKV(body);
+    if (!kv.name) return null;
+    return {
+      type: "project",
+      name: kv.name,
+      description: kv.description || "",
+      tech: kv.tech
+        ? kv.tech
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+      link: kv.link || undefined,
+    };
+  }
+
+  if (kind === "contact") {
+    const kv = parseKV(body);
+    if (!kv.name) return null;
+    return {
+      type: "contact",
+      name: kv.name,
+      email: kv.email || undefined,
+      github: kv.github || undefined,
+      linkedin: kv.linkedin || undefined,
+    };
+  }
+
+  if (kind === "skills") {
+    const categories: SkillCategory[] = [];
+    for (const group of body.split(/^---$/m)) {
+      const kv = parseKV(group);
+      if (kv.category && kv.items) {
+        categories.push({
+          label: kv.category,
+          items: kv.items
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        });
+      }
+    }
+    if (!categories.length) return null;
+    return { type: "skills", categories };
+  }
+
+  return null;
+}
 
 function parseSegments(content: string): Segment[] {
-  const lines = content.split("\n");
-
-  const cardHits: Array<{ index: number; title: string; desc: string }> = [];
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^[-*\d.]*\s*\*\*(.+?)\*\*[:\s]+(.+)$/);
-    if (m) cardHits.push({ index: i, title: m[1].trim(), desc: m[2].trim() });
-  }
-
-  if (cardHits.length < 2) return [{ type: "text", text: content }];
-
-  const cardSet = new Set(cardHits.map((c) => c.index));
   const segments: Segment[] = [];
-  let buf: string[] = [];
+  const blockRe = /:::(\w+)\n([\s\S]*?)\n:::/g;
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
 
-  for (let i = 0; i < lines.length; i++) {
-    if (cardSet.has(i)) {
-      const txt = buf.join("\n").trim();
-      if (txt) segments.push({ type: "text", text: txt });
-      buf = [];
-      const hit = cardHits.find((c) => c.index === i)!;
-      segments.push({ type: "card", title: hit.title, description: hit.desc });
-    } else {
-      buf.push(lines[i]);
-    }
+  while ((match = blockRe.exec(content)) !== null) {
+    const before = content.slice(lastIdx, match.index).trim();
+    if (before) segments.push({ type: "text", text: before });
+    const block = parseBlock(match[1], match[2]);
+    if (block) segments.push(block);
+    lastIdx = match.index + match[0].length;
   }
-  const tail = buf.join("\n").trim();
-  if (tail) segments.push({ type: "text", text: tail });
+
+  let tail = content.slice(lastIdx);
+  const danglingIdx = tail.indexOf(":::");
+  if (danglingIdx !== -1) tail = tail.slice(0, danglingIdx);
+  const tailTrim = tail.trim();
+  if (tailTrim) segments.push({ type: "text", text: tailTrim });
 
   return segments;
 }
@@ -47,20 +143,124 @@ function parseSegments(content: string): Segment[] {
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function ProjectCard({
-  title,
+  name,
   description,
+  tech,
+  link,
 }: {
-  title: string;
+  name: string;
   description: string;
+  tech: string[];
+  link?: string;
 }) {
   return (
-    <div className="rounded-xl border border-stone-200 border-l-2 border-l-indigo-400 bg-white hover:bg-indigo-50 transition-colors px-3 py-2.5 my-1 first:mt-0 last:mb-0">
-      <p className="text-[13px] font-semibold text-stone-900 leading-snug">
-        {title}
+    <div className="rounded-xl border border-folio-border border-l-2 border-l-folio-accent bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0 animate-fade-slide-up">
+      <p className="text-[13px] font-semibold text-folio-ink leading-snug">
+        {name}
       </p>
-      <p className="text-[12px] text-stone-500 mt-0.5 leading-relaxed">
-        {description}
-      </p>
+      {description && (
+        <p className="text-[12px] text-folio-muted mt-1 leading-relaxed">
+          {description}
+        </p>
+      )}
+      {tech.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {tech.map((t) => (
+            <span
+              key={t}
+              className="text-[10px] font-mono text-folio-accent bg-folio-accent-lt border border-amber-200 rounded px-1.5 py-0.5 leading-none"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 mt-2 text-[11px] font-medium text-folio-accent hover:underline"
+        >
+          View project <ExternalLink size={11} />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function ContactCard({
+  name,
+  email,
+  github,
+  linkedin,
+}: {
+  name: string;
+  email?: string;
+  github?: string;
+  linkedin?: string;
+}) {
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const links: { href: string; label: string; Icon: typeof Mail }[] = [];
+  if (email)
+    links.push({ href: `mailto:${email}`, label: email, Icon: Mail });
+  if (github) links.push({ href: github, label: "GitHub", Icon: Github });
+  if (linkedin)
+    links.push({ href: linkedin, label: "LinkedIn", Icon: Linkedin });
+
+  return (
+    <div className="rounded-xl border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0 animate-fade-slide-up">
+      <div className="flex items-center gap-2.5">
+        <div className="w-9 h-9 rounded-full border-2 border-folio-accent flex items-center justify-center text-folio-accent text-[14px] font-bold shrink-0">
+          {initial}
+        </div>
+        <p className="text-[13px] font-semibold text-folio-ink leading-snug">
+          {name}
+        </p>
+      </div>
+      {links.length > 0 && (
+        <ul className="mt-2.5 flex flex-col gap-1.5">
+          {links.map(({ href, label, Icon }) => (
+            <li key={href}>
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[12px] text-folio-ink hover:text-folio-accent transition-colors"
+              >
+                <Icon size={13} className="text-folio-muted" />
+                <span className="underline-offset-2 hover:underline break-all">
+                  {label}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SkillsCard({ categories }: { categories: SkillCategory[] }) {
+  return (
+    <div className="rounded-xl border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0 animate-fade-slide-up">
+      {categories.map((cat, i) => (
+        <div key={cat.label} className={i > 0 ? "mt-2.5" : ""}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-folio-muted">
+            {cat.label}
+          </p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {cat.items.map((item) => (
+              <span
+                key={item}
+                className="text-[11px] font-medium text-folio-ink bg-folio-bg border border-folio-border rounded-full px-2 py-0.5"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -69,35 +269,54 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
   if (role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-indigo-500 text-white px-3.5 py-2 text-[13px] leading-relaxed animate-fade-slide-up">
+        <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-folio-user-bg text-folio-user-fg px-3.5 py-2 text-[13px] leading-relaxed animate-fade-slide-up">
           {content}
         </div>
       </div>
     );
   }
 
-  const segments = parseSegments(content);
-  const hasCards = segments.some((s) => s.type === "card");
+  const displayContent = getDisplayContent(content);
+  const segments = parseSegments(displayContent);
+  const hasCards = segments.some((s) => s.type !== "text");
 
   return (
     <div className="flex justify-start">
       <div className={`max-w-[88%] ${hasCards ? "w-full" : ""}`}>
-        {segments.map((seg, i) =>
-          seg.type === "card" ? (
-            <ProjectCard
-              key={i}
-              title={seg.title}
-              description={seg.description}
-            />
-          ) : seg.text ? (
-            <div
-              key={i}
-              className="rounded-2xl rounded-bl-sm bg-white border border-stone-200 text-stone-800 px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap animate-fade-slide-up"
-            >
-              {seg.text}
-            </div>
-          ) : null
-        )}
+        {segments.map((seg, i) => {
+          if (seg.type === "project")
+            return (
+              <ProjectCard
+                key={i}
+                name={seg.name}
+                description={seg.description}
+                tech={seg.tech}
+                link={seg.link}
+              />
+            );
+          if (seg.type === "contact")
+            return (
+              <ContactCard
+                key={i}
+                name={seg.name}
+                email={seg.email}
+                github={seg.github}
+                linkedin={seg.linkedin}
+              />
+            );
+          if (seg.type === "skills")
+            return <SkillsCard key={i} categories={seg.categories} />;
+          if (seg.text)
+            return (
+              <div
+                key={i}
+                className="rounded-2xl rounded-bl-sm bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap animate-fade-slide-up"
+              >
+                {seg.text}
+              </div>
+            );
+          return null;
+        })}
       </div>
     </div>
   );
@@ -106,12 +325,12 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="bg-white border border-stone-200 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
+      <div className="bg-folio-surface border border-folio-border rounded-2xl rounded-bl-sm px-3.5 py-2.5">
         <span className="flex gap-1 items-center">
           {[0, 150, 300].map((delay) => (
             <span
               key={delay}
-              className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+              className="w-1.5 h-1.5 bg-folio-muted rounded-full animate-bounce"
               style={{ animationDelay: `${delay}ms` }}
             />
           ))}
@@ -139,18 +358,24 @@ export default function WidgetPage() {
 
   const isEmpty = messages.length === 0;
 
+  const lastAssistant = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  const activeSuggestions =
+    !isLoading && lastAssistant ? parseSuggestions(lastAssistant.content) : [];
+
   return (
-    <div className="flex flex-col h-screen bg-[#fafaf8] font-sans text-sm">
+    <div className="flex flex-col h-screen bg-folio-bg font-sans text-sm">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-stone-200 bg-white flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[13px] font-bold shrink-0">
+      <div className="shrink-0 px-4 py-3 border-b border-folio-border bg-folio-surface flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-folio-accent flex items-center justify-center text-folio-accent text-[13px] font-bold shrink-0">
           A
         </div>
         <div>
-          <h1 className="text-[13px] font-semibold text-stone-900">
+          <h1 className="text-[13px] font-semibold text-folio-ink">
             Hi, I&apos;m here to help
           </h1>
-          <p className="text-[11px] text-stone-400 mt-0.5">
+          <p className="text-[11px] text-folio-muted mt-0.5">
             Ask me about this person
           </p>
         </div>
@@ -159,21 +384,10 @@ export default function WidgetPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5">
         {isEmpty ? (
-          <div className="flex flex-col items-center gap-5 mt-6">
-            <p className="text-[12px] text-stone-400 text-center px-4">
-              What would you like to know? Pick a question or type your own.
+          <div className="flex flex-col items-center gap-3 mt-8 px-4">
+            <p className="text-[12px] text-folio-muted text-center leading-relaxed">
+              Welcome! Pick a topic below or ask me anything about this person.
             </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {QUICK_QUESTIONS.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => sendQuick(q)}
-                  className="text-[12px] text-stone-600 bg-stone-100 hover:bg-white hover:border-indigo-400 border border-stone-200 rounded-full px-3.5 py-1.5 transition-colors cursor-pointer"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           messages.map((m) => (
@@ -184,13 +398,46 @@ export default function WidgetPage() {
         <div ref={bottomRef} />
       </div>
 
+      {/* Dynamic suggestion pills (post-response) */}
+      {activeSuggestions.length > 0 && (
+        <div className="shrink-0 px-3 pt-2 pb-0.5 flex flex-wrap gap-1.5 bg-folio-surface border-t border-folio-border animate-fade-slide-up">
+          {activeSuggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => sendQuick(s)}
+              className="text-[11px] font-medium text-folio-accent bg-folio-accent-lt border border-amber-300 hover:bg-amber-200 rounded-full px-3 py-1 transition-colors cursor-pointer"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Persistent quick actions row */}
+      <div
+        className={`shrink-0 px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto bg-folio-surface no-scrollbar ${
+          activeSuggestions.length > 0 ? "" : "border-t border-folio-border"
+        }`}
+      >
+        {QUICK_ACTIONS.map((a) => (
+          <button
+            key={a.label}
+            onClick={() => sendQuick(a.query)}
+            disabled={isLoading}
+            className="shrink-0 text-[11px] font-medium text-folio-ink bg-folio-bg hover:bg-folio-accent-lt hover:border-amber-300 border border-folio-border rounded-full px-3 py-1 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+
       {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 px-3 py-3 border-t border-stone-200 flex gap-2 items-center bg-white"
+        className="shrink-0 px-3 pt-2 pb-3 flex gap-2 items-center bg-folio-surface"
       >
         <input
-          className="flex-1 text-[13px] bg-stone-100 text-stone-800 rounded-full px-4 py-2 outline-none placeholder-stone-400 focus:ring-1 focus:ring-indigo-300 transition"
+          className="flex-1 text-[13px] bg-folio-bg text-folio-ink rounded-full px-4 py-2 outline-none placeholder-folio-muted focus:ring-1 focus:ring-amber-400 transition"
           value={input}
           onChange={handleInputChange}
           placeholder="Type a message…"
@@ -200,7 +447,7 @@ export default function WidgetPage() {
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-indigo-500 text-white disabled:opacity-35 hover:bg-indigo-600 transition-colors"
+          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-folio-accent text-white disabled:opacity-35 hover:bg-amber-700 transition-colors"
         >
           <SendHorizonal size={14} />
         </button>

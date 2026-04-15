@@ -16,3 +16,6 @@
 .animate-fade-slide-up {
   animation: fadeSlideUp 0.22s ease-out both;
 }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

@@ -14,8 +14,8 @@ export async function GET() {
   var style = document.createElement('style');
   style.textContent = [
     '#folio-widget-root{position:fixed;bottom:24px;right:24px;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-end;gap:12px;font-family:sans-serif;}',
-    '#folio-btn{width:52px;height:52px;border-radius:50%;background:#6366f1;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,102,241,0.35);transition:transform .2s,background .2s;flex-shrink:0;}',
-    '#folio-btn:hover{background:#4f46e5;transform:scale(1.08);}',
+    '#folio-btn{width:52px;height:52px;border-radius:50%;background:#D97706;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(217,119,6,0.35);transition:transform .2s,background .2s;flex-shrink:0;}',
+    '#folio-btn:hover{background:#B45309;transform:scale(1.08);}',
     '#folio-btn svg{display:block;}',
     '#folio-iframe-wrap{width:380px;height:600px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.18);transform-origin:bottom right;transition:opacity .2s,transform .2s;pointer-events:auto;}',
     '#folio-iframe-wrap.folio-hidden{opacity:0;transform:scale(0.92) translateY(8px);pointer-events:none;visibility:hidden;}',
