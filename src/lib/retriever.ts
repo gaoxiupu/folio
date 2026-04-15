@@ -14,21 +14,26 @@ export async function retrieve(query: string): Promise<string> {
 
   const vec = await embedOne(query);
 
-  const { load: vssLoad } = await import("sqlite-vss");
   const db = new Database(DB_PATH, { readonly: true });
-  vssLoad(db);
+  const extPath = path.join(
+    process.cwd(), "node_modules",
+    `sqlite-vec-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`,
+    process.platform === "win32" ? "vec0.dll" : process.platform === "darwin" ? "vec0.dylib" : "vec0.so"
+  );
+  db.loadExtension(extPath);
 
   const rows = db
     .prepare(
       `SELECT c.text, c.source
        FROM chunks c
        WHERE c.id IN (
-         SELECT rowid FROM vss_chunks
-         WHERE vss_search(embedding, ?)
+         SELECT rowid FROM vec_chunks
+         WHERE embedding MATCH ?
+         ORDER BY distance
          LIMIT ?
        )`
     )
-    .all(JSON.stringify(vec), TOP_K) as { text: string; source: string }[];
+    .all(new Float32Array(vec), TOP_K) as { text: string; source: string }[];
 
   db.close();
 

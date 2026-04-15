@@ -44,36 +44,43 @@ export async function buildIndex(): Promise<void> {
     return;
   }
 
-  const { load: vssLoad } = await import("sqlite-vss");
   const db = new Database(DB_PATH);
-  vssLoad(db);
+  // Resolve the sqlite-vec native extension path manually (Next.js webpack breaks require.resolve)
+  const extPath = path.join(
+    process.cwd(), "node_modules",
+    `sqlite-vec-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`,
+    process.platform === "win32" ? "vec0.dll" : process.platform === "darwin" ? "vec0.dylib" : "vec0.so"
+  );
+  db.loadExtension(extPath);
 
   // Rebuild from scratch each run to keep index in sync with files
   db.exec(`
     DROP TABLE IF EXISTS chunks;
-    DROP TABLE IF EXISTS vss_chunks;
+    DROP TABLE IF EXISTS vec_chunks;
     CREATE TABLE chunks (
       id    INTEGER PRIMARY KEY AUTOINCREMENT,
       text  TEXT    NOT NULL,
       source TEXT   NOT NULL
     );
-    CREATE VIRTUAL TABLE vss_chunks USING vss0(embedding(${EMBEDDING_DIM}));
+    CREATE VIRTUAL TABLE vec_chunks USING vec0(embedding float[${EMBEDDING_DIM}]);
   `);
 
   const insertChunk = db.prepare(
     "INSERT INTO chunks (text, source) VALUES (?, ?)"
   );
   const insertVec = db.prepare(
-    "INSERT INTO vss_chunks (rowid, embedding) VALUES (?, ?)"
+    "INSERT INTO vec_chunks (rowid, embedding) VALUES (CAST(? AS INTEGER), ?)"
   );
 
+  let rowId = 0;
   for (const file of files) {
     console.log(`[indexer] Processing ${file}…`);
     const text = await readFile(path.join(KNOWLEDGE_DIR, file));
     for (const chunk of chunkText(text)) {
-      const { lastInsertRowid } = insertChunk.run(chunk, file);
+      insertChunk.run(chunk, file);
+      rowId++;
       const vec = await embedOne(chunk);
-      insertVec.run(lastInsertRowid, JSON.stringify(vec));
+      insertVec.run(rowId, new Float32Array(vec));
     }
   }
 
