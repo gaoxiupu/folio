@@ -17,9 +17,13 @@ export async function register() {
     });
 
     const onChange = async (filePath: string) => {
-      if (!/\.(md|txt|pdf)$/i.test(filePath)) return;
+      if (!/\.(md|txt|pdf|json)$/i.test(filePath)) return;
       console.log(`[watcher] Detected change in ${path.basename(filePath)} — re-indexing…`);
-      await buildIndex();
+      const { invalidateConfigCache } = await import("./lib/knowledge-config");
+      invalidateConfigCache();
+      if (!/\.json$/i.test(filePath)) {
+        await buildIndex();
+      }
     };
 
     watcher.on("add", onChange);

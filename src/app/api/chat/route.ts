@@ -3,6 +3,7 @@ import { streamText } from "ai";
 import { retrieve } from "@/lib/retriever";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkDailyBudget } from "@/lib/cost-limit";
+import { loadPersona, loadSocials, loadCard } from "@/lib/knowledge-config";
 
 export const runtime = "nodejs";
 
@@ -100,6 +101,11 @@ export async function POST(req: Request) {
   // ── RAG + LLM ────────────────────────────────────────────────────────────
   const context = await retrieve(userMessage);
 
+  // ── Load optional config ──────────────────────────────────────────────────
+  const personaContent = loadPersona();
+  const socialLinks = loadSocials();
+  const cardData = loadCard();
+
   const suggestionsInstruction = `
 
 After your response, on a new line, append exactly this structure:
@@ -108,13 +114,30 @@ Choose 3 natural follow-up questions a visitor would ask next.
 Write them in the same language as the conversation.
 Keep each question under 24 characters.`;
 
+  // ── Build optional prompt sections ────────────────────────────────────────
+  const personaPrefix = personaContent
+    ? `Personality & Style:\n${personaContent}\n\n`
+    : "";
+
+  const socialInstruction = socialLinks.length > 0
+    ? `Social media profiles (recommend relevant ones when the visitor shows interest in a topic):\n${
+        socialLinks.map(s => `- ${s.platform}: ${s.url}${s.handle ? ` (${s.handle})` : ""}`).join("\n")
+      }\nWhen mentioning social links, format them as: [platform name](url)\n\n`
+    : "";
+
+  const cardInstruction = cardData
+    ? `Digital business card data (use when visitor asks for contact card, business card, or how to reach the owner):\n${JSON.stringify(cardData, null, 2)}\nWhen emitting a business card, use this block format (only include fields that have values):\n:::card\nname: <value>\ntitle: <value>\ncompany: <value>\nemail: <value>\nphone: <value>\nwebsite: <value>\ngithub: <value>\nlinkedin: <value>\nwechat: <value>\n:::\n\n`
+    : "";
+
+  const dynamicPrefix = personaPrefix + socialInstruction + cardInstruction;
+
   const noContext = context.trim().length === 0;
   const systemPrompt = noContext
-    ? `You are a helpful assistant representing the portfolio owner.
+    ? `${dynamicPrefix}You are a helpful assistant representing the portfolio owner.
 You don't have enough information to answer this question.
 Reply in the same language as the visitor's message.
 Tell them: you're not sure about this one, and suggest they reach out directly to the owner.${suggestionsInstruction}`
-    : `You are a helpful assistant representing the portfolio owner.
+    : `${dynamicPrefix}You are a helpful assistant representing the portfolio owner.
 Answer visitors' questions based only on the context below.
 Reply in the same language as the visitor's message.
 If a question isn't covered by the context, say you're not sure and suggest the visitor reach out directly to the owner.

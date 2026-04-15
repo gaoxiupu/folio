@@ -4,14 +4,17 @@ import { useChat } from "ai/react";
 import Image from "next/image";
 import {
   ChevronRight,
+  Check,
+  Copy,
   ExternalLink,
   Github,
+  Globe,
   Linkedin,
   Mail,
   Phone,
   SendHorizonal,
 } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const QUICK_ACTIONS = [
   { label: "My Work", query: "Tell me about your projects" },
@@ -66,7 +69,19 @@ type Segment =
       github?: string;
       linkedin?: string;
     }
-  | { type: "skills"; categories: SkillCategory[] };
+  | { type: "skills"; categories: SkillCategory[] }
+  | {
+      type: "card";
+      name: string;
+      title?: string;
+      company?: string;
+      email?: string;
+      phone?: string;
+      website?: string;
+      github?: string;
+      linkedin?: string;
+      wechat?: string;
+    };
 
 function parseKV(body: string): Record<string, string> {
   const kv: Record<string, string> = {};
@@ -138,6 +153,23 @@ function parseBlock(kind: string, body: string): Segment | null {
     return { type: "skills", categories };
   }
 
+  if (kind === "card") {
+    const kv = parseKV(body);
+    if (!kv.name) return null;
+    return {
+      type: "card",
+      name: kv.name,
+      title: kv.title || undefined,
+      company: kv.company || undefined,
+      email: kv.email || undefined,
+      phone: kv.phone || undefined,
+      website: kv.website || undefined,
+      github: kv.github || undefined,
+      linkedin: kv.linkedin || undefined,
+      wechat: kv.wechat || undefined,
+    };
+  }
+
   return null;
 }
 
@@ -162,6 +194,38 @@ function parseSegments(content: string): Segment[] {
   if (tailTrim) segments.push({ type: "text", text: tailTrim });
 
   return segments;
+}
+
+// ── Inline markdown link renderer ────────────────────────────────────────────
+
+/** Render text with [label](url) markdown links as clickable <a> tags. */
+function renderInlineLinks(text: string) {
+  const parts: (string | JSX.Element)[] = [];
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    parts.push(
+      <a
+        key={key++}
+        href={match[2]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-folio-accent underline underline-offset-2 hover:text-folio-ink transition-colors"
+      >
+        {match[1]}
+      </a>
+    );
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+  return parts;
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -337,6 +401,135 @@ function SkillsCard({ categories }: { categories: SkillCategory[] }) {
   );
 }
 
+function BusinessCard({
+  name,
+  title,
+  company,
+  email,
+  phone,
+  website,
+  github,
+  linkedin,
+  wechat,
+}: {
+  name: string;
+  title?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  github?: string;
+  linkedin?: string;
+  wechat?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copyText = [
+    name,
+    title,
+    company,
+    email && `Email: ${email}`,
+    phone && `Phone: ${phone}`,
+    website && `Website: ${website}`,
+    github && `GitHub: ${github}`,
+    linkedin && `LinkedIn: ${linkedin}`,
+    wechat && `WeChat: ${wechat}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API may fail in some contexts
+    }
+  }, [copyText]);
+
+  const links: { href: string; label: string; Icon: typeof Mail }[] = [];
+  if (email)
+    links.push({ href: `mailto:${email}`, label: email, Icon: Mail });
+  if (phone)
+    links.push({ href: `tel:${phone}`, label: phone, Icon: Phone });
+  if (website)
+    links.push({ href: website, label: website.replace(/^https?:\/\//, ""), Icon: Globe });
+  if (github)
+    links.push({ href: github, label: "GitHub", Icon: Github });
+  if (linkedin)
+    links.push({ href: linkedin, label: "LinkedIn", Icon: Linkedin });
+
+  return (
+    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0 relative">
+      {/* Header */}
+      <div className="flex items-center gap-2.5">
+        <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
+          <Image src="/avatar.jpg" alt={name} width={36} height={36} className="w-full h-full object-cover" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-folio-ink leading-snug">
+            {name}
+          </p>
+          {(title || company) && (
+            <p className="text-[11px] text-folio-muted mt-0.5">
+              {[title, company].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Contact links */}
+      {links.length > 0 && (
+        <ul className="mt-2.5 flex flex-col gap-1.5">
+          {links.map(({ href, label, Icon }) => (
+            <li key={href}>
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[12px] text-folio-ink hover:text-folio-accent transition-colors"
+              >
+                <Icon size={13} className="text-folio-muted" />
+                <span className="underline-offset-2 hover:underline break-all">
+                  {label}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* WeChat */}
+      {wechat && (
+        <div className="mt-2 inline-flex items-center gap-2 text-[12px] text-folio-ink">
+          <span className="text-[11px] text-folio-muted bg-folio-bg border border-folio-border rounded px-2 py-0.5">
+            WeChat: {wechat}
+          </span>
+        </div>
+      )}
+
+      {/* Copy button */}
+      <button
+        onClick={handleCopy}
+        className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[11px] font-medium text-folio-muted hover:text-folio-ink transition-colors cursor-pointer px-2 py-1 rounded hover:bg-folio-bg"
+      >
+        {copied ? (
+          <>
+            <Check size={12} />
+            <span>Copied</span>
+          </>
+        ) : (
+          <>
+            <Copy size={12} />
+            <span>Copy</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
 function MessageBubble({ content, role, onLearnMore }: { content: string; role: string; onLearnMore?: (name: string) => void }) {
   if (role === "user") {
     return (
@@ -391,13 +584,28 @@ function MessageBubble({ content, role, onLearnMore }: { content: string; role: 
             );
           if (seg.type === "skills")
             return <SkillsCard key={i} categories={seg.categories} />;
+          if (seg.type === "card")
+            return (
+              <BusinessCard
+                key={i}
+                name={seg.name}
+                title={seg.title}
+                company={seg.company}
+                email={seg.email}
+                phone={seg.phone}
+                website={seg.website}
+                github={seg.github}
+                linkedin={seg.linkedin}
+                wechat={seg.wechat}
+              />
+            );
           if (seg.text)
             return (
               <div
                 key={i}
                 className="rounded-lg bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap"
               >
-                {seg.text}
+                {renderInlineLinks(seg.text)}
               </div>
             );
           return null;
