@@ -147,46 +147,39 @@ function parseSegments(content: string): Segment[] {
 function ProjectCard({
   name,
   description,
-  tech,
-  link,
+  onLearnMore,
 }: {
   name: string;
   description: string;
   tech: string[];
   link?: string;
+  onLearnMore: (name: string) => void;
 }) {
   return (
-    <div className="rounded-xl border border-folio-border border-l-2 border-l-folio-accent bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0 animate-fade-slide-up">
+    <div
+      className="group rounded-lg border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0"
+      onMouseEnter={(e) => {
+        const btn = e.currentTarget.querySelector("[data-learn-more]");
+        if (btn) (btn as HTMLElement).style.opacity = "1";
+      }}
+      onMouseLeave={(e) => {
+        const btn = e.currentTarget.querySelector("[data-learn-more]");
+        if (btn) (btn as HTMLElement).style.opacity = "0";
+      }}
+    >
       <p className="text-[13px] font-semibold text-folio-ink leading-snug">
         {name}
       </p>
-      {description && (
-        <p className="text-[12px] text-folio-muted mt-1 leading-relaxed">
-          {description}
-        </p>
-      )}
-      {tech.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {tech.map((t) => (
-            <span
-              key={t}
-              className="text-[10px] font-mono text-folio-accent bg-folio-accent-lt border border-amber-200 rounded px-1.5 py-0.5 leading-none"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-      {link && (
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-2 text-[11px] font-medium text-folio-accent hover:underline"
-        >
-          View project <ExternalLink size={11} />
-        </a>
-      )}
+      <p className="text-[12px] text-folio-muted mt-0.5 leading-relaxed">
+        {description}
+      </p>
+      <button
+        data-learn-more
+        onClick={() => onLearnMore(name)}
+        className="mt-1 text-[11px] font-medium text-folio-accent hover:underline cursor-pointer opacity-0 transition-opacity duration-150"
+      >
+        Learn more →
+      </button>
     </div>
   );
 }
@@ -202,7 +195,6 @@ function ContactCard({
   github?: string;
   linkedin?: string;
 }) {
-  const initial = name.trim().charAt(0).toUpperCase() || "?";
   const links: { href: string; label: string; Icon: typeof Mail }[] = [];
   if (email)
     links.push({ href: `mailto:${email}`, label: email, Icon: Mail });
@@ -211,10 +203,10 @@ function ContactCard({
     links.push({ href: linkedin, label: "LinkedIn", Icon: Linkedin });
 
   return (
-    <div className="rounded-xl border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0 animate-fade-slide-up">
+    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
       <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-full border-2 border-folio-accent flex items-center justify-center text-folio-accent text-[14px] font-bold shrink-0">
-          {initial}
+        <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
+          <Image src="/avatar.jpg" alt={name} width={36} height={36} className="w-full h-full object-cover" />
         </div>
         <p className="text-[13px] font-semibold text-folio-ink leading-snug">
           {name}
@@ -245,7 +237,7 @@ function ContactCard({
 
 function SkillsCard({ categories }: { categories: SkillCategory[] }) {
   return (
-    <div className="rounded-xl border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0 animate-fade-slide-up">
+    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0">
       {categories.map((cat, i) => (
         <div key={cat.label} className={i > 0 ? "mt-2.5" : ""}>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-folio-muted">
@@ -255,7 +247,7 @@ function SkillsCard({ categories }: { categories: SkillCategory[] }) {
             {cat.items.map((item) => (
               <span
                 key={item}
-                className="text-[11px] font-medium text-folio-ink bg-folio-bg border border-folio-border rounded-full px-2 py-0.5"
+                className="text-[11px] font-medium text-folio-ink bg-folio-bg border border-folio-border rounded px-2 py-0.5"
               >
                 {item}
               </span>
@@ -267,11 +259,11 @@ function SkillsCard({ categories }: { categories: SkillCategory[] }) {
   );
 }
 
-function MessageBubble({ content, role }: { content: string; role: string }) {
+function MessageBubble({ content, role, onLearnMore }: { content: string; role: string; onLearnMore?: (name: string) => void }) {
   if (role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-folio-user-bg text-folio-user-fg px-3.5 py-2 text-[13px] leading-relaxed animate-fade-slide-up">
+        <div className="max-w-[82%] rounded-lg bg-folio-user-bg text-folio-user-fg px-3.5 py-2 text-[13px] leading-relaxed">
           {content}
         </div>
       </div>
@@ -294,6 +286,7 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
                 description={seg.description}
                 tech={seg.tech}
                 link={seg.link}
+                onLearnMore={onLearnMore!}
               />
             );
           if (seg.type === "contact")
@@ -312,7 +305,7 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
             return (
               <div
                 key={i}
-                className="rounded-2xl rounded-bl-sm bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap animate-fade-slide-up"
+                className="rounded-lg bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed my-1 first:mt-0 last:mb-0 whitespace-pre-wrap"
               >
                 {seg.text}
               </div>
@@ -327,7 +320,7 @@ function MessageBubble({ content, role }: { content: string; role: string }) {
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="bg-folio-surface border border-folio-border rounded-2xl rounded-bl-sm px-3.5 py-2.5">
+      <div className="bg-folio-surface border border-folio-border rounded-lg px-3.5 py-2.5">
         <span className="flex gap-1 items-center">
           {[0, 150, 300].map((delay) => (
             <span
@@ -381,7 +374,7 @@ export default function WidgetPage() {
   return (
     <div className="flex flex-col h-screen bg-folio-bg font-sans text-sm">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-folio-border bg-folio-surface flex items-center gap-3">
+      <div className="shrink-0 px-4 py-3 border-b border-folio-border bg-white flex items-center gap-3">
         <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
           <Image src="/avatar.jpg" alt="PaulBot" width={32} height={32} className="w-full h-full object-cover" />
         </div>
@@ -398,28 +391,28 @@ export default function WidgetPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5">
         {isEmpty ? (
-          <div className="flex justify-start gap-2 mt-4 animate-fade-slide-up">
+          <div className="flex justify-start gap-2 mt-4">
             <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 mt-0.5">
               <Image src="/avatar.jpg" alt="PaulBot" width={28} height={28} className="w-full h-full object-cover" />
             </div>
-            <div className="rounded-2xl rounded-bl-sm bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed max-w-[88%]">
+            <div className="rounded-lg bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed max-w-[88%]">
               <p>Hi there! 👋 I&apos;m <strong>PaulBot</strong>, Paul&apos;s AI assistant.</p>
               <p className="mt-1.5">Feel free to ask me anything about Paul — his projects, skills, experience, or how to get in touch.</p>
             </div>
           </div>
         ) : (
           messages.map((m) => (
-            <MessageBubble key={m.id} content={m.content} role={m.role} />
+            <MessageBubble key={m.id} content={m.content} role={m.role} onLearnMore={(name) => sendQuick(`详细介绍一下${name}项目`)} />
           ))
         )}
         {activeSuggestions.length > 0 && !isLoading && (
           <div className="flex justify-start">
-            <div className="max-w-[88%] flex flex-col gap-1.5 mt-1 animate-fade-slide-up">
+            <div className="max-w-[88%] flex flex-col gap-1.5 mt-1">
               {activeSuggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => sendQuick(s)}
-                  className="flex items-center justify-between rounded-lg bg-folio-bg hover:bg-folio-accent-lt px-3 py-1.5 text-[12px] text-folio-muted hover:text-folio-ink transition-colors cursor-pointer"
+                  className="flex items-center justify-between rounded-lg bg-folio-surface hover:bg-[rgba(55,53,47,0.08)] px-3 py-1.5 text-[12px] text-folio-muted hover:text-folio-ink transition-colors cursor-pointer"
                 >
                   <span>{s}</span>
                   <ChevronRight size={12} className="text-folio-border" />
@@ -434,7 +427,7 @@ export default function WidgetPage() {
 
       {/* Persistent quick actions row */}
       <div
-        className={`shrink-0 px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto bg-folio-surface no-scrollbar ${
+        className={`shrink-0 px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto bg-white no-scrollbar ${
           activeSuggestions.length > 0 ? "" : "border-t border-folio-border"
         }`}
       >
@@ -443,7 +436,7 @@ export default function WidgetPage() {
             key={a.label}
             onClick={() => sendQuick(a.query)}
             disabled={isLoading}
-            className="shrink-0 text-[11px] font-medium text-folio-ink bg-folio-bg hover:bg-folio-accent-lt hover:border-amber-300 border border-folio-border rounded-full px-3 py-1 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="shrink-0 text-[11px] font-medium text-folio-ink bg-folio-surface hover:bg-[rgba(55,53,47,0.08)] border border-folio-border rounded-lg px-3 py-1 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {a.label}
           </button>
@@ -456,12 +449,12 @@ export default function WidgetPage() {
           handleSubmit(e);
           adjustHeight();
         }}
-        className="shrink-0 px-3 pt-2 pb-3 bg-folio-surface"
+        className="shrink-0 px-3 pt-2 pb-3 bg-white"
       >
         <div className="relative">
           <textarea
             ref={textareaRef}
-            className="w-full text-[13px] bg-folio-bg text-folio-ink rounded-2xl px-4 py-2.5 pr-11 outline-none placeholder-folio-muted focus:ring-1 focus:ring-amber-400 transition resize-none overflow-y-auto leading-[20px] min-h-[56px] max-h-[96px]"
+            className="w-full text-[13px] bg-folio-surface text-folio-ink rounded-lg px-4 py-2.5 pr-11 outline-none placeholder-folio-muted focus:ring-1 focus:ring-folio-border transition resize-none overflow-y-auto leading-[20px] min-h-[56px] max-h-[96px]"
             value={input}
             onChange={handleInputChange}
             placeholder="Type a message…"
@@ -479,7 +472,7 @@ export default function WidgetPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="absolute right-2 bottom-2 w-7 h-7 flex items-center justify-center rounded-full bg-folio-accent text-white hover:bg-amber-700 transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+              className="absolute right-2 bottom-2 w-7 h-7 flex items-center justify-center rounded-lg bg-folio-accent text-white hover:bg-[#2F2D2A] transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
             >
               <SendHorizonal size={13} />
             </button>

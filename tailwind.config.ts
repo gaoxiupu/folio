@@ -9,18 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-jakarta)", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       colors: {
-        "folio-bg": "#FAF7F2",
-        "folio-surface": "#FFFFFF",
-        "folio-border": "#E8E2D9",
-        "folio-ink": "#1C1917",
-        "folio-muted": "#78716C",
-        "folio-accent": "#D97706",
-        "folio-accent-lt": "#FEF3C7",
-        "folio-user-bg": "#1C1917",
-        "folio-user-fg": "#FAF7F2",
+        "folio-bg": "#FFFFFF",
+        "folio-surface": "#F7F6F3",
+        "folio-border": "#E8E7E4",
+        "folio-ink": "#37352F",
+        "folio-muted": "#9B9A97",
+        "folio-accent": "#37352F",
+        "folio-accent-lt": "#F7F6F3",
+        "folio-user-bg": "#37352F",
+        "folio-user-fg": "#FFFFFF",
       },
     },
   },
