@@ -3,6 +3,7 @@ import path from "path";
 import Database from "better-sqlite3";
 import pdfParse from "pdf-parse";
 import { embedOne, EMBEDDING_DIM } from "./embeddings";
+import { invalidateDbCache } from "./retriever";
 
 const KNOWLEDGE_DIR = path.join(process.cwd(), "knowledge");
 const DB_PATH = path.join(process.cwd(), "vector.db");
@@ -85,5 +86,6 @@ export async function buildIndex(): Promise<void> {
   }
 
   db.close();
+  invalidateDbCache();
   console.log(`[indexer] Done — ${files.length} file(s) indexed.`);
 }

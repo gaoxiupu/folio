@@ -1,10 +1,39 @@
 import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
-import { embedOne } from "./embeddings";
+import { cachedEmbed } from "./embeddings";
 
 const DB_PATH = path.join(process.cwd(), "vector.db");
 const TOP_K = 5;
+
+// ── DB singleton ──
+let dbInstance: Database.Database | null = null;
+
+function getExtPath(): string {
+  const platform = process.platform === "win32" ? "windows" : process.platform;
+  const ext = process.platform === "win32" ? "vec0.dll"
+    : process.platform === "darwin" ? "vec0.dylib" : "vec0.so";
+  return path.join(
+    process.cwd(), "node_modules",
+    `sqlite-vec-${platform}-${process.arch}`, ext,
+  );
+}
+
+function getDb(): Database.Database {
+  if (dbInstance) return dbInstance;
+  const db = new Database(DB_PATH, { readonly: true });
+  db.loadExtension(getExtPath());
+  dbInstance = db;
+  return db;
+}
+
+/** Call from indexer after rebuilding the DB so stale handles are dropped. */
+export function invalidateDbCache(): void {
+  if (dbInstance) {
+    dbInstance.close();
+    dbInstance = null;
+  }
+}
 
 export async function retrieve(query: string): Promise<string> {
   if (!fs.existsSync(DB_PATH)) {
@@ -12,15 +41,8 @@ export async function retrieve(query: string): Promise<string> {
     return "";
   }
 
-  const vec = await embedOne(query);
-
-  const db = new Database(DB_PATH, { readonly: true });
-  const extPath = path.join(
-    process.cwd(), "node_modules",
-    `sqlite-vec-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`,
-    process.platform === "win32" ? "vec0.dll" : process.platform === "darwin" ? "vec0.dylib" : "vec0.so"
-  );
-  db.loadExtension(extPath);
+  const vec = await cachedEmbed(query);
+  const db = getDb();
 
   const rows = db
     .prepare(
@@ -34,8 +56,6 @@ export async function retrieve(query: string): Promise<string> {
        )`
     )
     .all(new Float32Array(vec), TOP_K) as { text: string; source: string }[];
-
-  db.close();
 
   if (rows.length === 0) return "";
 

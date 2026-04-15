@@ -8,6 +8,7 @@ import {
   Github,
   Linkedin,
   Mail,
+  Phone,
   SendHorizonal,
 } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
@@ -51,9 +52,17 @@ type Segment =
       link?: string;
     }
   | {
+      type: "experience";
+      company: string;
+      role: string;
+      period: string;
+      description: string;
+    }
+  | {
       type: "contact";
       name: string;
       email?: string;
+      phone?: string;
       github?: string;
       linkedin?: string;
     }
@@ -86,6 +95,18 @@ function parseBlock(kind: string, body: string): Segment | null {
     };
   }
 
+  if (kind === "experience") {
+    const kv = parseKV(body);
+    if (!kv.company) return null;
+    return {
+      type: "experience",
+      company: kv.company,
+      role: kv.role || "",
+      period: kv.period || "",
+      description: kv.description || "",
+    };
+  }
+
   if (kind === "contact") {
     const kv = parseKV(body);
     if (!kv.name) return null;
@@ -93,6 +114,7 @@ function parseBlock(kind: string, body: string): Segment | null {
       type: "contact",
       name: kv.name,
       email: kv.email || undefined,
+      phone: kv.phone || undefined,
       github: kv.github || undefined,
       linkedin: kv.linkedin || undefined,
     };
@@ -184,20 +206,76 @@ function ProjectCard({
   );
 }
 
+function ExperienceCard({
+  company,
+  role,
+  period,
+  description,
+  onLearnMore,
+}: {
+  company: string;
+  role: string;
+  period: string;
+  description: string;
+  onLearnMore: (company: string) => void;
+}) {
+  return (
+    <div
+      className="group rounded-lg border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0"
+      onMouseEnter={(e) => {
+        const btn = e.currentTarget.querySelector("[data-learn-more]");
+        if (btn) (btn as HTMLElement).style.opacity = "1";
+      }}
+      onMouseLeave={(e) => {
+        const btn = e.currentTarget.querySelector("[data-learn-more]");
+        if (btn) (btn as HTMLElement).style.opacity = "0";
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[13px] font-semibold text-folio-ink leading-snug">
+          {company}
+        </p>
+        {period && (
+          <span className="text-[11px] text-folio-muted shrink-0">{period}</span>
+        )}
+      </div>
+      {role && (
+        <p className="text-[12px] font-medium text-folio-ink/70 mt-0.5">{role}</p>
+      )}
+      {description && (
+        <p className="text-[12px] text-folio-muted mt-0.5 leading-relaxed">
+          {description}
+        </p>
+      )}
+      <button
+        data-learn-more
+        onClick={() => onLearnMore(company)}
+        className="mt-1 text-[11px] font-medium text-folio-accent hover:underline cursor-pointer opacity-0 transition-opacity duration-150"
+      >
+        Learn more →
+      </button>
+    </div>
+  );
+}
+
 function ContactCard({
   name,
   email,
+  phone,
   github,
   linkedin,
 }: {
   name: string;
   email?: string;
+  phone?: string;
   github?: string;
   linkedin?: string;
 }) {
   const links: { href: string; label: string; Icon: typeof Mail }[] = [];
   if (email)
     links.push({ href: `mailto:${email}`, label: email, Icon: Mail });
+  if (phone)
+    links.push({ href: `tel:${phone}`, label: phone, Icon: Phone });
   if (github) links.push({ href: github, label: "GitHub", Icon: Github });
   if (linkedin)
     links.push({ href: linkedin, label: "LinkedIn", Icon: Linkedin });
@@ -289,12 +367,24 @@ function MessageBubble({ content, role, onLearnMore }: { content: string; role: 
                 onLearnMore={onLearnMore!}
               />
             );
+          if (seg.type === "experience")
+            return (
+              <ExperienceCard
+                key={i}
+                company={seg.company}
+                role={seg.role}
+                period={seg.period}
+                description={seg.description}
+                onLearnMore={onLearnMore!}
+              />
+            );
           if (seg.type === "contact")
             return (
               <ContactCard
                 key={i}
                 name={seg.name}
                 email={seg.email}
+                phone={seg.phone}
                 github={seg.github}
                 linkedin={seg.linkedin}
               />
@@ -402,7 +492,12 @@ export default function WidgetPage() {
           </div>
         ) : (
           messages.map((m) => (
-            <MessageBubble key={m.id} content={m.content} role={m.role} onLearnMore={(name) => sendQuick(`详细介绍一下${name}项目`)} />
+            <MessageBubble key={m.id} content={m.content} role={m.role} onLearnMore={(name) => {
+              // detect if this is an experience card or project card based on context
+              const text = m.content;
+              const isExperience = text.includes(`company: ${name}`) || text.includes(`company:${name}`);
+              sendQuick(isExperience ? `详细介绍一下在${name}的工作经历` : `详细介绍一下${name}项目`);
+            }} />
           ))
         )}
         {activeSuggestions.length > 0 && !isLoading && (

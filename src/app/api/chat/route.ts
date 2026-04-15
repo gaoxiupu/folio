@@ -48,8 +48,17 @@ When providing contact information, output one block:
 :::contact
 name: <full name>
 email: <email, optional>
+phone: <phone number, optional>
 github: <github url, optional>
 linkedin: <linkedin url, optional>
+:::
+
+When listing work experience, output each position in this exact block format (one block per position, blank line between blocks):
+:::experience
+company: <company name>
+role: <job title>
+period: <time range, e.g. 2020 - 2023>
+description: <one sentence summary of responsibilities or achievements>
 :::
 
 When listing skills grouped by category, output one block with category groups separated by a line containing only ---:

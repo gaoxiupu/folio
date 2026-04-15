@@ -37,3 +37,31 @@ export async function embedBlocks(blocks: ContentBlock[]): Promise<number[]> {
 export async function embedOne(text: string): Promise<number[]> {
   return embedBlocks([{ type: "text", text }]);
 }
+
+// ── LRU embedding cache ──
+const MAX_CACHE = 200;
+const embedCache = new Map<string, number[]>();
+
+function cacheKey(text: string): string {
+  return text.trim().toLowerCase();
+}
+
+/** embedOne with in-memory LRU cache. Evicts oldest when full. */
+export async function cachedEmbed(text: string): Promise<number[]> {
+  const key = cacheKey(text);
+  const hit = embedCache.get(key);
+  if (hit) {
+    // move to end (most-recently used)
+    embedCache.delete(key);
+    embedCache.set(key, hit);
+    return hit;
+  }
+  const vec = await embedOne(text);
+  if (embedCache.size >= MAX_CACHE) {
+    // evict oldest entry (first key)
+    const firstKey = embedCache.keys().next().value;
+    if (firstKey !== undefined) embedCache.delete(firstKey);
+  }
+  embedCache.set(key, vec);
+  return vec;
+}
