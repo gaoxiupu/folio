@@ -1,14 +1,14 @@
 export async function register() {
   // Only run in Node.js runtime (not Edge), and only on the server
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { buildIndex } = await import("./lib/indexer");
+    const { compileWiki } = await import("./lib/wiki-compiler");
     const { syncGithub } = await import("./lib/github-sync");
 
-    // Sync GitHub before indexing so the snapshot is available to the index.
+    // Sync GitHub before compiling wiki so the snapshot is available.
     await syncGithub().catch((e) => console.warn("[instrumentation] syncGithub failed:", e));
-    await buildIndex();
+    await compileWiki();
 
-    // Watch /knowledge for changes and re-index automatically
+    // Watch /knowledge for changes and re-compile wiki automatically
     const path = await import("path");
     const chokidar = await import("chokidar");
 
@@ -22,7 +22,7 @@ export async function register() {
 
     const onChange = async (filePath: string) => {
       if (!/\.(md|txt|pdf|json)$/i.test(filePath)) return;
-      console.log(`[watcher] Detected change in ${path.basename(filePath)} — re-indexing…`);
+      console.log(`[watcher] Detected change in ${path.basename(filePath)} — re-compiling wiki…`);
       const { invalidateConfigCache } = await import("./lib/knowledge-config");
       const { invalidateGithubCache, syncGithub } = await import("./lib/github-sync");
       invalidateConfigCache();
@@ -30,9 +30,7 @@ export async function register() {
       if (/github\.json$/i.test(filePath)) {
         await syncGithub().catch((e) => console.warn("[watcher] syncGithub failed:", e));
       }
-      if (!/\.json$/i.test(filePath)) {
-        await buildIndex();
-      }
+      await compileWiki();
     };
 
     watcher.on("add", onChange);

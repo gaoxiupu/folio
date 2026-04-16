@@ -17,7 +17,10 @@ build/
 .env.test.local
 .env.production.local
 
-# vector store (auto-generated)
+# wiki (auto-generated from knowledge/)
+wiki/
+
+# vector store (auto-generated) — legacy, kept for reference
 vector.db
 
 # personal data (kept in `personal` branch)

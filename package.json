@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "compile-wiki": "npx tsx -e \"import('./src/lib/wiki-compiler').then(m => m.compileWiki())\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -11,7 +12,6 @@
   "dependencies": {
     "@ai-sdk/openai": "^0.0.66",
     "ai": "^3.3.0",
-    "better-sqlite3": "^12.9.0",
     "chokidar": "^3.6.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -20,11 +20,9 @@
     "pdf-parse": "^1.1.1",
     "react": "^18",
     "react-dom": "^18",
-    "sqlite-vec": "^0.1.9",
     "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^18",

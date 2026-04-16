@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
-import { retrieve } from "@/lib/retriever";
+import { loadWikiContext } from "@/lib/wiki-loader";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkDailyBudget } from "@/lib/cost-limit";
 import { loadPersona, loadSocials, loadCard, loadSkills } from "@/lib/knowledge-config";
@@ -99,8 +99,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // ── RAG + LLM ────────────────────────────────────────────────────────────
-  const context = await retrieve(userMessage);
+  // ── Wiki context ──────────────────────────────────────────────────────────
+  const context = loadWikiContext();
 
   // ── Load optional config ──────────────────────────────────────────────────
   const personaContent = loadPersona();
