@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useChat } from "ai/react";
 import Image from "next/image";
 import {
@@ -14,14 +15,91 @@ import {
   Phone,
   SendHorizonal,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 
-const QUICK_ACTIONS = [
-  { label: "My Work", query: "Tell me about your projects" },
-  { label: "Experience", query: "What's your work experience?" },
-  { label: "Skills", query: "What are your technical skills?" },
-  { label: "Contact", query: "How can I get in touch?" },
-];
+// ── i18n ────────────────────────────────────────────────────────────────────
+
+type Locale = "en" | "zh";
+
+const T = {
+  en: {
+    subtitle: "Ask me about Paul.",
+    greeting1: "Hi there! 👋 I'm <strong>PaulBot</strong>, Paul's AI assistant.",
+    greeting2: "Feel free to ask me anything about Paul — his projects, skills, experience, or how to get in touch.",
+    quickWork: "My Work",
+    quickWorkQuery: "Tell me about your projects",
+    quickExp: "Experience",
+    quickExpQuery: "What's your work experience?",
+    quickSkills: "Skills",
+    quickSkillsQuery: "What are your technical skills?",
+    quickContact: "Contact",
+    quickContactQuery: "How can I get in touch?",
+    learnMore: "Learn more →",
+    copy: "Copy",
+    copied: "Copied",
+    msgSent: "Message sent",
+    msgSentBody: "Thanks! I'll pass it along — expect a reply soon.",
+    msgSend: "Send message",
+    msgSending: "Sending…",
+    msgErrorDefault: "Failed to send. Please try again.",
+    msgErrorNetwork: "Network error. Please try again.",
+    msgName: "Your name",
+    msgContact: "Email or other contact",
+    msgBody: "Your message…",
+    repos: (n: number) => `${n} repos`,
+    followers: (n: number) => `${n} followers`,
+    topLanguages: "Top languages",
+    placeholder: "Type a message…",
+  },
+  zh: {
+    subtitle: "问我关于 Paul 的事。",
+    greeting1: "你好！👋 我是 <strong>PaulBot</strong>，Paul 的 AI 助手。",
+    greeting2: "欢迎问我关于 Paul 的任何事情 — 他的项目、技能、工作经历，或者如何联系他。",
+    quickWork: "作品",
+    quickWorkQuery: "介绍一下你的项目",
+    quickExp: "经历",
+    quickExpQuery: "介绍一下你的工作经历",
+    quickSkills: "技能",
+    quickSkillsQuery: "介绍一下你的技术能力",
+    quickContact: "联系",
+    quickContactQuery: "怎么联系你？",
+    learnMore: "了解更多 →",
+    copy: "复制",
+    copied: "已复制",
+    msgSent: "消息已发送",
+    msgSentBody: "谢谢！我会转达给他，请留意回复。",
+    msgSend: "发送消息",
+    msgSending: "发送中…",
+    msgErrorDefault: "发送失败，请重试。",
+    msgErrorNetwork: "网络错误，请重试。",
+    msgName: "你的名字",
+    msgContact: "邮箱或其他联系方式",
+    msgBody: "你想说的话…",
+    repos: (n: number) => `${n} 个仓库`,
+    followers: (n: number) => `${n} 位关注者`,
+    topLanguages: "主要语言",
+    placeholder: "输入消息…",
+  },
+} as const;
+
+const LocaleCtx = React.createContext<Locale>("en");
+
+function useLocale() {
+  return useContext(LocaleCtx);
+}
+
+function useDetectLocale(): Locale {
+  const [locale, setLocale] = useState<Locale>("en");
+  useEffect(() => {
+    const lang = navigator.language.toLowerCase();
+    setLocale(lang.startsWith("zh") ? "zh" : "en");
+  }, []);
+  return locale;
+}
+
+function t(locale: Locale) {
+  return T[locale];
+}
 
 // ── Suggestion tag helpers ───────────────────────────────────────────────────
 
@@ -329,6 +407,7 @@ function ProjectCard({
   link?: string;
   onLearnMore: (name: string) => void;
 }) {
+  const locale = useLocale();
   return (
     <div
       className="group rounded-lg border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0"
@@ -352,7 +431,7 @@ function ProjectCard({
         onClick={() => onLearnMore(name)}
         className="mt-1 text-[11px] font-medium text-folio-accent hover:underline cursor-pointer opacity-0 transition-opacity duration-150"
       >
-        Learn more →
+        {t(locale).learnMore}
       </button>
     </div>
   );
@@ -371,6 +450,7 @@ function ExperienceCard({
   description: string;
   onLearnMore: (company: string) => void;
 }) {
+  const locale = useLocale();
   return (
     <div
       className="group rounded-lg border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0"
@@ -404,7 +484,7 @@ function ExperienceCard({
         onClick={() => onLearnMore(company)}
         className="mt-1 text-[11px] font-medium text-folio-accent hover:underline cursor-pointer opacity-0 transition-opacity duration-150"
       >
-        Learn more →
+        {t(locale).learnMore}
       </button>
     </div>
   );
@@ -510,6 +590,7 @@ function BusinessCard({
   linkedin?: string;
   wechat?: string;
 }) {
+  const locale = useLocale();
   const [copied, setCopied] = useState(false);
 
   const copyText = [
@@ -605,12 +686,12 @@ function BusinessCard({
         {copied ? (
           <>
             <Check size={12} />
-            <span>Copied</span>
+            <span>{t(locale).copied}</span>
           </>
         ) : (
           <>
             <Copy size={12} />
-            <span>Copy</span>
+            <span>{t(locale).copy}</span>
           </>
         )}
       </button>
@@ -619,6 +700,7 @@ function BusinessCard({
 }
 
 function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
+  const locale = useLocale();
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [msg, setMsg] = useState("");
@@ -644,13 +726,13 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setErrorMsg(data.error || "Failed to send. Please try again.");
+        setErrorMsg(data.error || t(locale).msgErrorDefault);
         setStatus("error");
         return;
       }
       setStatus("sent");
     } catch {
-      setErrorMsg("Network error. Please try again.");
+      setErrorMsg(t(locale).msgErrorNetwork);
       setStatus("error");
     }
   };
@@ -660,10 +742,10 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
       <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
         <div className="flex items-center gap-2 text-[13px] font-semibold text-folio-ink">
           <Check size={14} className="text-folio-accent" />
-          <span>Message sent</span>
+          <span>{t(locale).msgSent}</span>
         </div>
         <p className="text-[12px] text-folio-muted mt-1 leading-relaxed">
-          Thanks! I&apos;ll pass it along — expect a reply soon.
+          {t(locale).msgSentBody}
         </p>
       </div>
     );
@@ -686,7 +768,7 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
+          placeholder={t(locale).msgName}
           maxLength={80}
           disabled={status === "sending"}
           className="text-[12px] bg-folio-bg border border-folio-border rounded px-2 py-1.5 text-folio-ink outline-none focus:border-folio-accent placeholder-folio-muted"
@@ -695,7 +777,7 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
           type="text"
           value={contact}
           onChange={(e) => setContact(e.target.value)}
-          placeholder="Email or other contact"
+          placeholder={t(locale).msgContact}
           maxLength={200}
           disabled={status === "sending"}
           className="text-[12px] bg-folio-bg border border-folio-border rounded px-2 py-1.5 text-folio-ink outline-none focus:border-folio-accent placeholder-folio-muted"
@@ -703,7 +785,7 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
         <textarea
           value={msg}
           onChange={(e) => setMsg(e.target.value)}
-          placeholder="Your message…"
+          placeholder={t(locale).msgBody}
           maxLength={2000}
           rows={3}
           disabled={status === "sending"}
@@ -718,7 +800,7 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
         disabled={!canSubmit}
         className="mt-2 w-full text-[12px] font-medium bg-folio-accent text-white rounded px-3 py-1.5 hover:bg-[#2F2D2A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
       >
-        {status === "sending" ? "Sending…" : "Send message"}
+        {status === "sending" ? t(locale).msgSending : t(locale).msgSend}
       </button>
     </div>
   );
@@ -867,6 +949,7 @@ function GithubCard({
   top_languages?: { name: string; percent: number }[];
   top_repos?: { name: string; description?: string; stars: number; url: string }[];
 }) {
+  const locale = useLocale();
   return (
     <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
       <div className="flex items-center gap-2">
@@ -886,14 +969,14 @@ function GithubCard({
       )}
       {(followers !== undefined || public_repos !== undefined) && (
         <div className="flex gap-3 mt-1.5 text-[11px] text-folio-muted">
-          {public_repos !== undefined && <span>📦 {public_repos} repos</span>}
-          {followers !== undefined && <span>👥 {followers} followers</span>}
+          {public_repos !== undefined && <span>📦 {t(locale).repos(public_repos)}</span>}
+          {followers !== undefined && <span>👥 {t(locale).followers(followers)}</span>}
         </div>
       )}
       {top_languages && top_languages.length > 0 && (
         <div className="mt-2">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-folio-muted">
-            Top languages
+            {t(locale).topLanguages}
           </p>
           <div className="flex flex-wrap gap-1 mt-1">
             {top_languages.map((l) => (
@@ -1060,6 +1143,7 @@ function TypingIndicator() {
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function WidgetPage() {
+  const locale = useDetectLocale();
   const { messages, input, handleInputChange, handleSubmit, isLoading, append } =
     useChat({ api: "/api/chat" });
 
@@ -1093,21 +1177,37 @@ export default function WidgetPage() {
   const activeSuggestions =
     !isLoading && lastAssistant ? parseSuggestions(lastAssistant.content) : [];
 
+  const quickActions = [
+    { label: t(locale).quickWork, query: t(locale).quickWorkQuery },
+    { label: t(locale).quickExp, query: t(locale).quickExpQuery },
+    { label: t(locale).quickSkills, query: t(locale).quickSkillsQuery },
+    { label: t(locale).quickContact, query: t(locale).quickContactQuery },
+  ];
+
   return (
+    <LocaleCtx.Provider value={locale}>
     <div className="flex flex-col h-screen bg-folio-bg font-sans text-sm">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 border-b border-folio-border bg-white flex items-center gap-3">
         <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
           <Image src="/avatar.jpg" alt="PaulBot" width={32} height={32} className="w-full h-full object-cover" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-[13px] font-semibold text-folio-ink">
             PaulBot
           </h1>
           <p className="text-[11px] text-folio-muted mt-0.5">
-            Ask me about Paul.
+            {t(locale).subtitle}
           </p>
         </div>
+        <a
+          href="https://github.com/gaoxiupu/folio"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-folio-muted hover:text-folio-ink transition-colors shrink-0"
+        >
+          <Github size={16} />
+        </a>
       </div>
 
       {/* Messages */}
@@ -1118,8 +1218,8 @@ export default function WidgetPage() {
               <Image src="/avatar.jpg" alt="PaulBot" width={28} height={28} className="w-full h-full object-cover" />
             </div>
             <div className="rounded-lg bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed max-w-[88%]">
-              <p>Hi there! 👋 I&apos;m <strong>PaulBot</strong>, Paul&apos;s AI assistant.</p>
-              <p className="mt-1.5">Feel free to ask me anything about Paul — his projects, skills, experience, or how to get in touch.</p>
+              <p dangerouslySetInnerHTML={{ __html: t(locale).greeting1 }} />
+              <p className="mt-1.5">{t(locale).greeting2}</p>
             </div>
           </div>
         ) : (
@@ -1128,7 +1228,10 @@ export default function WidgetPage() {
               // detect if this is an experience card or project card based on context
               const text = m.content;
               const isExperience = text.includes(`company: ${name}`) || text.includes(`company:${name}`);
-              sendQuick(isExperience ? `详细介绍一下在${name}的工作经历` : `详细介绍一下${name}项目`);
+              sendQuick(isExperience
+                ? (locale === "zh" ? `详细介绍一下在${name}的工作经历` : `Tell me more about working at ${name}`)
+                : (locale === "zh" ? `详细介绍一下${name}项目` : `Tell me more about the ${name} project`)
+              );
             }} />
           ))
         )}
@@ -1158,7 +1261,7 @@ export default function WidgetPage() {
           activeSuggestions.length > 0 ? "" : "border-t border-folio-border"
         }`}
       >
-        {QUICK_ACTIONS.map((a) => (
+        {quickActions.map((a) => (
           <button
             key={a.label}
             onClick={() => sendQuick(a.query)}
@@ -1184,7 +1287,7 @@ export default function WidgetPage() {
             className="w-full text-[13px] bg-folio-surface text-folio-ink rounded-lg px-4 py-2.5 pr-11 outline-none placeholder-folio-muted focus:ring-1 focus:ring-folio-border transition resize-none overflow-y-auto leading-[20px] min-h-[56px] max-h-[96px]"
             value={input}
             onChange={handleInputChange}
-            placeholder="Type a message…"
+            placeholder={t(locale).placeholder}
             disabled={isLoading}
             autoFocus
             rows={2}
@@ -1207,5 +1310,6 @@ export default function WidgetPage() {
         </div>
       </form>
     </div>
+    </LocaleCtx.Provider>
   );
 }
