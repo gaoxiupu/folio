@@ -97,6 +97,39 @@ function parsePages(raw: string): Map<string, string> {
   return pages;
 }
 
+function buildFallbackPages(
+  files: string[],
+  contents: Array<{ file: string; content: string }>,
+): Map<string, string> {
+  const pages = new Map<string, string>();
+  const summaries: string[] = [];
+
+  for (const { file, content } of contents) {
+    const baseName = path.basename(file, path.extname(file));
+    const pageName = `${baseName}.md`;
+    const cleaned = content.trim() || "_No readable content extracted._";
+    const summaryLine = cleaned
+      .replace(/\s+/g, " ")
+      .slice(0, 96)
+      .trim();
+
+    pages.set(
+      pageName,
+      `# ${baseName}\n\n_Source: ${file}_\n\n${cleaned}`,
+    );
+    summaries.push(`- ${pageName}: ${summaryLine || "Imported from knowledge source."}`);
+  }
+
+  pages.set(
+    "index.md",
+    summaries.length > 0
+      ? summaries.join("\n")
+      : files.map((file) => `- ${file}: Imported from knowledge source.`).join("\n"),
+  );
+
+  return pages;
+}
+
 // ── Compiler prompt ───────────────────────────────────────────────────────
 
 const COMPILER_SYSTEM = `你是一个知识库编译器。你的任务是将原始文件编译为一组结构化的 wiki 页面。
@@ -140,10 +173,12 @@ export async function compileWiki(): Promise<void> {
 
   // Read all file contents
   const sections: string[] = [];
+  const extractedContents: Array<{ file: string; content: string }> = [];
   for (const file of files) {
     try {
       const content = await readFileContent(path.join(KNOWLEDGE_DIR, file));
       sections.push(`=== ${file} ===\n${content}`);
+      extractedContents.push({ file, content });
     } catch (e) {
       console.warn(`[wiki-compiler] Failed to read ${file}:`, e);
     }
@@ -156,29 +191,37 @@ export async function compileWiki(): Promise<void> {
 
   const rawInput = sections.join("\n\n");
 
-  // Call LLM
-  const ark = createOpenAI({
-    baseURL: "https://ark.cn-beijing.volces.com/api/v3",
-    apiKey: process.env.ARK_API_KEY,
-  });
-
   try {
-    const { text } = await generateText({
-      model: ark("doubao-seed-2-0-pro-260215"),
-      system: COMPILER_SYSTEM,
-      prompt: `原始资料：\n\n${rawInput}`,
-    });
+    let pages: Map<string, string>;
 
-    // Parse and write pages
-    const pages = parsePages(text);
-
-    if (pages.size === 0) {
+    if (!process.env.ARK_API_KEY) {
       console.warn(
-        "[wiki-compiler] LLM output could not be parsed into pages. Raw output saved to wiki/.raw-output.txt",
+        "[wiki-compiler] ARK_API_KEY missing — falling back to a deterministic wiki compile.",
       );
-      if (!fs.existsSync(WIKI_DIR)) fs.mkdirSync(WIKI_DIR, { recursive: true });
-      fs.writeFileSync(path.join(WIKI_DIR, ".raw-output.txt"), text);
-      return;
+      pages = buildFallbackPages(files, extractedContents);
+    } else {
+      const ark = createOpenAI({
+        baseURL: "https://ark.cn-beijing.volces.com/api/v3",
+        apiKey: process.env.ARK_API_KEY,
+      });
+
+      const { text } = await generateText({
+        model: ark("doubao-seed-2-0-pro-260215"),
+        system: COMPILER_SYSTEM,
+        prompt: `原始资料：\n\n${rawInput}`,
+      });
+
+      // Parse and write pages
+      pages = parsePages(text);
+
+      if (pages.size === 0) {
+        console.warn(
+          "[wiki-compiler] LLM output could not be parsed into pages. Raw output saved to wiki/.raw-output.txt",
+        );
+        if (!fs.existsSync(WIKI_DIR)) fs.mkdirSync(WIKI_DIR, { recursive: true });
+        fs.writeFileSync(path.join(WIKI_DIR, ".raw-output.txt"), text);
+        return;
+      }
     }
 
     if (!fs.existsSync(WIKI_DIR)) fs.mkdirSync(WIKI_DIR, { recursive: true });

@@ -12,6 +12,7 @@ build/
 
 # env
 .env
+.dev.vars
 .env.local
 .env.development.local
 .env.test.local
@@ -19,8 +20,7 @@ build/
 
 wiki/
 
-# vector store (auto-generated) — legacy, kept for reference
-vector.db
+
 
 # personal data
 public/avatar.jpg
@@ -45,3 +45,7 @@ next-env.d.ts
 .playwright-mcp/
 phase*.png
 .gitignore
+
+# OpenNext
+.open-next
+.wrangler

@@ -315,7 +315,7 @@ function parseSegments(content: string): Segment[] {
 
 /** Render text with [label](url) markdown links as clickable <a> tags. */
 function renderInlineLinks(text: string) {
-  const parts: (string | JSX.Element)[] = [];
+  const parts: React.ReactNode[] = [];
   const re = /\[([^\]]+)\]\(([^)]+)\)/g;
   let last = 0;
   let match: RegExpExecArray | null;

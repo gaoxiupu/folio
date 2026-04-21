@@ -1,15 +1,6 @@
+import("@opennextjs/cloudflare").then((m) => m.initOpenNextCloudflareForDev());
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    instrumentationHook: true,
-    serverComponentsExternalPackages: [
-      "better-sqlite3",
-      "sqlite-vss",
-      "pdf-parse",
-      "chokidar",
-      "fsevents",
-    ],
-  },
-};
+const nextConfig = {};
 
 export default nextConfig;
