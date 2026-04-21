@@ -1,0 +1,55 @@
+{
+  "fetchedAt": "2026-04-21T05:39:12.727Z",
+  "profile": {
+    "login": "gaoxiupu",
+    "name": "PaulGao",
+    "bio": null,
+    "company": null,
+    "location": "shenzhen",
+    "blog": "",
+    "public_repos": 3,
+    "followers": 0,
+    "avatar_url": "https://avatars.githubusercontent.com/u/41313448?v=4"
+  },
+  "top_repos": [
+    {
+      "name": "folio",
+      "full_name": "gaoxiupu/folio",
+      "description": null,
+      "stars": 0,
+      "language": "TypeScript",
+      "url": "https://github.com/gaoxiupu/folio"
+    },
+    {
+      "name": "video-to-docs",
+      "full_name": "gaoxiupu/video-to-docs",
+      "description": null,
+      "stars": 0,
+      "language": "Shell",
+      "url": "https://github.com/gaoxiupu/video-to-docs"
+    },
+    {
+      "name": "copycheck",
+      "full_name": "gaoxiupu/copycheck",
+      "description": null,
+      "stars": 0,
+      "language": "JavaScript",
+      "url": "https://github.com/gaoxiupu/copycheck"
+    }
+  ],
+  "top_languages": [
+    {
+      "name": "TypeScript",
+      "percent": 33.33333333333333
+    },
+    {
+      "name": "Shell",
+      "percent": 33.33333333333333
+    },
+    {
+      "name": "JavaScript",
+      "percent": 33.33333333333333
+    }
+  ],
+  "highlights": []
+}

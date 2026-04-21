@@ -17,22 +17,17 @@ build/
 .env.test.local
 .env.production.local
 
-# wiki (auto-generated from knowledge/)
 wiki/
 
 # vector store (auto-generated) — legacy, kept for reference
 vector.db
 
 # personal data
-knowledge/
-persona.md
 public/avatar.jpg
 .env
 .env.local
 
 # auto-generated knowledge artifacts
-knowledge/.github-cache.json
-knowledge/messages.json
 
 # debug
 npm-debug.log*
