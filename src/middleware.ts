@@ -13,6 +13,31 @@ function normalizeOrigin(value: string | null): string | null {
   }
 }
 
+function getRequestOrigin(request: NextRequest): string | null {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+
+  if (!host) {
+    return normalizeOrigin(request.nextUrl.origin);
+  }
+
+  const proto =
+    forwardedProto ?? request.nextUrl.protocol.replace(":", "") ?? "https";
+  return normalizeOrigin(`${proto}://${host}`);
+}
+
+function isSameOriginRequest(
+  request: NextRequest,
+  candidate: string | null,
+): boolean {
+  if (!candidate) return false;
+
+  const requestOrigin = getRequestOrigin(request);
+  if (!requestOrigin) return false;
+
+  return normalizeOrigin(candidate) === requestOrigin;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -23,13 +48,14 @@ export function middleware(request: NextRequest) {
   ) {
     const origin = request.headers.get("origin");
     const referer = request.headers.get("referer");
+    const secFetchSite = request.headers.get("sec-fetch-site");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
     const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const requestOrigin = request.nextUrl.origin;
+    const requestOrigin = getRequestOrigin(request);
     const allAllowed = [
       requestOrigin,
       normalizeOrigin(baseUrl ?? null),
@@ -39,7 +65,11 @@ export function middleware(request: NextRequest) {
     if (origin) {
       const normalizedOrigin = normalizeOrigin(origin);
 
-      if (!normalizedOrigin || !allAllowed.includes(normalizedOrigin)) {
+      if (
+        !normalizedOrigin ||
+        (!allAllowed.includes(normalizedOrigin) &&
+          !isSameOriginRequest(request, normalizedOrigin))
+      ) {
         return NextResponse.json(
           { error: "Request not allowed from this origin." },
           { status: 403 },
@@ -55,15 +85,22 @@ export function middleware(request: NextRequest) {
         );
       }
 
-      if (!allAllowed.includes(refererOrigin)) {
+      if (
+        !allAllowed.includes(refererOrigin) &&
+        !isSameOriginRequest(request, refererOrigin)
+      ) {
         return NextResponse.json(
           { error: "Request not allowed from this origin." },
           { status: 403 },
         );
       }
     } else {
-      // No origin or referer — block in production
-      if (process.env.NODE_ENV === "production") {
+      // Some edge/browser combinations omit Origin for same-origin POSTs.
+      if (
+        process.env.NODE_ENV === "production" &&
+        secFetchSite !== "same-origin" &&
+        secFetchSite !== "same-site"
+      ) {
         return NextResponse.json(
           { error: "Request not allowed." },
           { status: 403 },
