@@ -23,15 +23,12 @@ wiki/
 # vector store (auto-generated) — legacy, kept for reference
 vector.db
 
-# personal data (kept in `personal` branch)
-knowledge/card.json
-# persona config
+# personal data
+knowledge/
 persona.md
-knowledge/socials.json
-knowledge/github.json
-knowledge/skills.json
-knowledge/*.pdf
 public/avatar.jpg
+.env
+.env.local
 
 # auto-generated knowledge artifacts
 knowledge/.github-cache.json
