@@ -648,8 +648,17 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
         body: JSON.stringify({ name, contact, message: msg }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setErrorMsg(data.error || t(locale).msgErrorDefault);
+        const data = (await res.json().catch(() => ({}))) as unknown;
+        const error =
+          data &&
+          typeof data === "object" &&
+          "error" in data &&
+          typeof data.error === "string"
+            ? data.error
+            : null;
+        setErrorMsg(
+          error ?? t(locale).msgErrorDefault,
+        );
         setStatus("error");
         return;
       }

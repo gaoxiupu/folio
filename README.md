@@ -127,20 +127,20 @@ visitor             ← AI response with rich cards
 
 ### Automatic Deployment
 
-This repo includes a GitHub Actions workflow at `.github/workflows/deploy-worker.yml`.
-Push to the `personal-deploy` branch, or run the workflow manually from the GitHub Actions tab, and it will build with OpenNext and deploy to Cloudflare Workers.
+Recommended setup: connect this repository directly in Cloudflare Workers Builds.
+After that, every push to your selected production branch will be built and deployed by Cloudflare automatically, without GitHub Actions in the middle.
 
-Add these GitHub repository secrets before enabling it:
+In Cloudflare, open your Worker and configure:
 
-| Secret | Required | Purpose |
-|--------|----------|---------|
-| `CLOUDFLARE_API_TOKEN` | Yes | Allows GitHub Actions to deploy with Wrangler |
-| `CLOUDFLARE_ACCOUNT_ID` | Yes | Selects the Cloudflare account to deploy into |
+| Variable / Secret | Required | Purpose |
+|-------------------|----------|---------|
 | `ARK_API_KEY` | Yes | Runtime API key for chat responses |
 | `NEXT_PUBLIC_BASE_URL` | Yes | Public deployment URL used by the widget embed script |
+| `ALLOWED_ORIGINS` | No | Extra allowed POST origins for embedded widget hosts |
+| `ALLOWED_EMBED_DOMAINS` | No | Restricts which sites may iframe the widget |
 
-This setup follows Cloudflare's official GitHub Actions flow using `cloudflare/wrangler-action@v3`.
-If you want to lock down iframe embedding later, add `ALLOWED_EMBED_DOMAINS` in the Cloudflare dashboard or extend the workflow to sync it as a Worker secret.
+Cloudflare direct Git integration also expects the Worker name in the dashboard to match the `name` in `wrangler.jsonc`.
+If you want one-click deploys from GitHub, connect the repository in Cloudflare under `Workers & Pages -> your Worker -> Settings -> Builds`.
 
 ### Tech Stack
 
@@ -281,20 +281,20 @@ visitor             ← AI 回复 + 富交互卡片
 
 ### 自动部署
 
-仓库已经包含 GitHub Actions 工作流 `.github/workflows/deploy-worker.yml`。
-当你推送到 `personal-deploy` 分支，或者在 GitHub Actions 页面手动触发时，它会自动执行 OpenNext 构建并部署到 Cloudflare Workers。
+推荐方式是直接使用 Cloudflare Workers Builds 连接这个 GitHub 仓库。
+连好之后，你只需要推送代码到生产分支，Cloudflare 就会自动拉取、构建并部署，不再经过 GitHub Actions。
 
-启用前请先在 GitHub 仓库里配置这些 Secrets：
+请在 Cloudflare 的 Worker 配置里设置这些变量：
 
-| Secret | 必需 | 作用 |
-|--------|------|------|
-| `CLOUDFLARE_API_TOKEN` | 是 | 允许 GitHub Actions 通过 Wrangler 部署 |
-| `CLOUDFLARE_ACCOUNT_ID` | 是 | 指定部署到哪个 Cloudflare 账号 |
+| 变量 / Secret | 必需 | 作用 |
+|---------------|------|------|
 | `ARK_API_KEY` | 是 | 聊天接口运行时所需的 API Key |
 | `NEXT_PUBLIC_BASE_URL` | 是 | Widget 脚本生成 iframe 地址时使用的公网 URL |
+| `ALLOWED_ORIGINS` | 否 | 额外允许发起 POST 请求的来源域名 |
+| `ALLOWED_EMBED_DOMAINS` | 否 | 限制哪些网站可以 iframe 嵌入组件 |
 
-这套配置基于 Cloudflare 官方推荐的 `cloudflare/wrangler-action@v3` 工作流。
-如果你之后想收紧 iframe 嵌入范围，可以再在 Cloudflare 面板里添加 `ALLOWED_EMBED_DOMAINS`，或把它补进这个工作流同步到 Worker secret。
+另外，Cloudflare 直连 GitHub 时，面板里的 Worker 名称需要和 `wrangler.jsonc` 中的 `name` 保持一致。
+如果你要重新连接仓库，可以在 Cloudflare 面板进入 `Workers & Pages -> 对应 Worker -> Settings -> Builds`。
 
 ### 技术栈
 

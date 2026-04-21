@@ -8,16 +8,16 @@ import { loadGithubSnapshot } from "@/lib/github-sync";
 
 export const runtime = "nodejs";
 
-const ark = createOpenAI({
-  baseURL: "https://ark.cn-beijing.volces.com/api/v3",
-  apiKey: process.env.ARK_API_KEY,
-});
-
 function jsonError(status: number, error: string) {
   return new Response(JSON.stringify({ error }), {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function getArkApiKey(): string | null {
+  const apiKey = process.env.ARK_API_KEY?.trim();
+  return apiKey ? apiKey : null;
 }
 
 export async function POST(req: Request) {
@@ -234,11 +234,50 @@ Rules:
 Context:
 ${context}${suggestionsInstruction}`;
 
-  const result = await streamText({
-    model: ark("doubao-seed-2-0-pro-260215"),
-    system: systemPrompt,
-    messages: messages as Parameters<typeof streamText>[0]["messages"],
+  const arkApiKey = getArkApiKey();
+  if (!arkApiKey) {
+    console.error("[chat] Missing ARK_API_KEY runtime secret.");
+    return jsonError(
+      503,
+      "Chat is not configured on this deployment yet. Missing ARK_API_KEY.",
+    );
+  }
+
+  const ark = createOpenAI({
+    baseURL: "https://ark.cn-beijing.volces.com/api/v3",
+    apiKey: arkApiKey,
   });
 
-  return result.toDataStreamResponse();
+  try {
+    const result = await streamText({
+      model: ark("doubao-seed-2-0-pro-260215"),
+      system: systemPrompt,
+      messages: messages as Parameters<typeof streamText>[0]["messages"],
+    });
+
+    return result.toDataStreamResponse();
+  } catch (error) {
+    console.error("[chat] Failed to stream response:", error);
+
+    if (error instanceof Error) {
+      if (error.name === "AI_LoadAPIKeyError") {
+        return jsonError(
+          503,
+          "Chat is not configured on this deployment yet. Missing ARK_API_KEY.",
+        );
+      }
+
+      if (/401|403|unauthorized|invalid api key/i.test(error.message)) {
+        return jsonError(
+          502,
+          "The chat service credentials are invalid. Please check ARK_API_KEY.",
+        );
+      }
+    }
+
+    return jsonError(
+      500,
+      "The chat service is temporarily unavailable. Please try again later.",
+    );
+  }
 }

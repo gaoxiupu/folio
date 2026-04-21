@@ -7,6 +7,11 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	"secrets": {
+		"required": [
+			"ARK_API_KEY"
+		]
+	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
