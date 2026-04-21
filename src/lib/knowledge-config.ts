@@ -23,17 +23,11 @@ export interface CardData {
   wechat?: string;
 }
 
-export interface SkillAxis {
-  label: string;
-  value: number; // 0 – 100
-}
-
 // ── Cache (undefined = not loaded, null = file absent) ─────────────────────────
 
 let _persona: string | null | undefined;
 let _socials: SocialLink[] | null | undefined;
 let _card: CardData | null | undefined;
-let _skills: SkillAxis[] | null | undefined;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -61,10 +55,19 @@ function readJsonFile<T>(filename: string): T | null {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-/** Read knowledge/persona.md. Returns null if file doesn't exist. */
+/** Read persona.md from root. Returns null if file doesn't exist. */
 export function loadPersona(): string | null {
   if (_persona === undefined) {
-    _persona = readTextFile("persona.md");
+    try {
+      const filePath = path.join(process.cwd(), "persona.md");
+      if (!fs.existsSync(filePath)) {
+        _persona = null;
+      } else {
+        _persona = fs.readFileSync(filePath, "utf-8").trim() || null;
+      }
+    } catch {
+      _persona = null;
+    }
   }
   return _persona;
 }
@@ -95,44 +98,9 @@ export function loadCard(): CardData | null {
   return _card;
 }
 
-/**
- * Read knowledge/skills.json. Accepts either `{ axes: [{label, value}] }`
- * or a bare array. Values are clamped to 0-100. Returns null if missing.
- */
-export function loadSkills(): SkillAxis[] | null {
-  if (_skills === undefined) {
-    const data = readJsonFile<{ axes?: SkillAxis[] } | SkillAxis[]>("skills.json");
-    let arr: unknown[] | null = null;
-    if (Array.isArray(data)) arr = data;
-    else if (data && Array.isArray((data as { axes?: SkillAxis[] }).axes))
-      arr = (data as { axes: SkillAxis[] }).axes;
-
-    if (!arr) {
-      _skills = null;
-    } else {
-      const cleaned = arr
-        .filter(
-          (a): a is { label: string; value: number } =>
-            !!a &&
-            typeof a === "object" &&
-            typeof (a as { label?: unknown }).label === "string" &&
-            typeof (a as { value?: unknown }).value === "number",
-        )
-        .map((a) => ({
-          label: a.label.trim(),
-          value: Math.max(0, Math.min(100, a.value)),
-        }))
-        .filter((a) => a.label.length > 0);
-      _skills = cleaned.length > 0 ? cleaned : null;
-    }
-  }
-  return _skills;
-}
-
 /** Reset all cached config. Called when files in /knowledge change. */
 export function invalidateConfigCache(): void {
   _persona = undefined;
   _socials = undefined;
   _card = undefined;
-  _skills = undefined;
 }

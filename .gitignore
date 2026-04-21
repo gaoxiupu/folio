@@ -25,7 +25,8 @@ vector.db
 
 # personal data (kept in `personal` branch)
 knowledge/card.json
-knowledge/persona.md
+# persona config
+persona.md
 knowledge/socials.json
 knowledge/github.json
 knowledge/skills.json

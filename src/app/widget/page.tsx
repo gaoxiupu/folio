@@ -25,13 +25,11 @@ const T = {
   en: {
     subtitle: "Ask me about Paul.",
     greeting1: "Hi there! 👋 I'm <strong>PaulBot</strong>, Paul's AI assistant.",
-    greeting2: "Feel free to ask me anything about Paul — his projects, skills, experience, or how to get in touch.",
+    greeting2: "Feel free to ask me anything about Paul — his projects, experience, or how to get in touch.",
     quickWork: "My Work",
     quickWorkQuery: "Tell me about your projects",
     quickExp: "Experience",
     quickExpQuery: "What's your work experience?",
-    quickSkills: "Skills",
-    quickSkillsQuery: "What are your technical skills?",
     quickContact: "Contact",
     quickContactQuery: "How can I get in touch?",
     learnMore: "Learn more →",
@@ -54,13 +52,11 @@ const T = {
   zh: {
     subtitle: "问我关于 Paul 的事。",
     greeting1: "你好！👋 我是 <strong>PaulBot</strong>，Paul 的 AI 助手。",
-    greeting2: "欢迎问我关于 Paul 的任何事情 — 他的项目、技能、工作经历，或者如何联系他。",
+    greeting2: "欢迎问我关于 Paul 的任何事情 — 他的项目、工作经历，或者如何联系他。",
     quickWork: "作品",
     quickWorkQuery: "介绍一下你的项目",
     quickExp: "经历",
     quickExpQuery: "介绍一下你的工作经历",
-    quickSkills: "技能",
-    quickSkillsQuery: "介绍一下你的技术能力",
     quickContact: "联系",
     quickContactQuery: "怎么联系你？",
     learnMore: "了解更多 →",
@@ -121,8 +117,6 @@ function parseSuggestions(content: string): string[] {
 
 // ── Rich card parser (::block::) ─────────────────────────────────────────────
 
-type SkillCategory = { label: string; items: string[] };
-
 type Segment =
   | { type: "text"; text: string }
   | {
@@ -146,12 +140,6 @@ type Segment =
       phone?: string;
       github?: string;
       linkedin?: string;
-    }
-  | { type: "skills"; categories: SkillCategory[] }
-  | {
-      type: "skills-radar";
-      title?: string;
-      axes: { label: string; value: number }[];
     }
   | {
       type: "card";
@@ -229,24 +217,6 @@ function parseBlock(kind: string, body: string): Segment | null {
     };
   }
 
-  if (kind === "skills") {
-    const categories: SkillCategory[] = [];
-    for (const group of body.split(/^---$/m)) {
-      const kv = parseKV(group);
-      if (kv.category && kv.items) {
-        categories.push({
-          label: kv.category,
-          items: kv.items
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-        });
-      }
-    }
-    if (!categories.length) return null;
-    return { type: "skills", categories };
-  }
-
   if (kind === "card") {
     const kv = parseKV(body);
     if (!kv.name) return null;
@@ -270,27 +240,6 @@ function parseBlock(kind: string, body: string): Segment | null {
       type: "message-form",
       title: kv.title || undefined,
       hint: kv.hint || undefined,
-    };
-  }
-
-  if (kind === "skills-radar") {
-    const kv = parseKV(body);
-    const axes: { label: string; value: number }[] = [];
-    // axes can be provided as "axes: Label1:80, Label2:60, Label3:90"
-    if (kv.axes) {
-      for (const part of kv.axes.split(",")) {
-        const [labelRaw, valRaw] = part.split(":");
-        if (!labelRaw || !valRaw) continue;
-        const v = parseInt(valRaw.trim(), 10);
-        if (!Number.isFinite(v)) continue;
-        axes.push({ label: labelRaw.trim(), value: Math.max(0, Math.min(100, v)) });
-      }
-    }
-    if (axes.length < 3) return null;
-    return {
-      type: "skills-radar",
-      title: kv.title || undefined,
-      axes,
     };
   }
 
@@ -544,31 +493,6 @@ function ContactCard({
     </div>
   );
 }
-
-function SkillsCard({ categories }: { categories: SkillCategory[] }) {
-  return (
-    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-2.5 my-1 first:mt-0 last:mb-0">
-      {categories.map((cat, i) => (
-        <div key={cat.label} className={i > 0 ? "mt-2.5" : ""}>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-folio-muted">
-            {cat.label}
-          </p>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {cat.items.map((item) => (
-              <span
-                key={item}
-                className="text-[11px] font-medium text-folio-ink bg-folio-bg border border-folio-border rounded px-2 py-0.5"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function BusinessCard({
   name,
   title,
@@ -806,132 +730,6 @@ function MessageFormCard({ title, hint }: { title?: string; hint?: string }) {
   );
 }
 
-function SkillsRadarCard({
-  title,
-  axes,
-}: {
-  title?: string;
-  axes: { label: string; value: number }[];
-}) {
-  const size = 280;
-  const center = size / 2;
-  const radius = 80;
-  const labelOffset = 16;
-  const rings = 4;
-  const n = axes.length;
-
-  const angleFor = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
-
-  const axisPoints = axes.map((_, i) => {
-    const a = angleFor(i);
-    return { x: center + Math.cos(a) * radius, y: center + Math.sin(a) * radius };
-  });
-
-  const dataPoints = axes.map((axis, i) => {
-    const a = angleFor(i);
-    const r = (axis.value / 100) * radius;
-    return { x: center + Math.cos(a) * r, y: center + Math.sin(a) * r };
-  });
-
-  const dataPath = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
-
-  const anchorFor = (cosA: number) => {
-    if (cosA > 0.25) return "start";
-    if (cosA < -0.25) return "end";
-    return "middle";
-  };
-
-  const baselineFor = (sinA: number) => {
-    if (sinA > 0.25) return "hanging";
-    if (sinA < -0.25) return "auto";
-    return "middle";
-  };
-
-  return (
-    <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
-      {title && (
-        <p className="text-[13px] font-semibold text-folio-ink leading-snug mb-1">
-          {title}
-        </p>
-      )}
-      <div className="flex justify-center">
-        <svg
-          width="100%"
-          height="auto"
-          viewBox={`0 0 ${size} ${size}`}
-          style={{ maxWidth: size }}
-        >
-          {/* concentric rings */}
-          {Array.from({ length: rings }).map((_, ringIdx) => {
-            const r = radius * ((ringIdx + 1) / rings);
-            const pts = axes
-              .map((_, i) => {
-                const a = angleFor(i);
-                return `${center + Math.cos(a) * r},${center + Math.sin(a) * r}`;
-              })
-              .join(" ");
-            return (
-              <polygon
-                key={ringIdx}
-                points={pts}
-                fill="none"
-                stroke="rgba(55,53,47,0.12)"
-                strokeWidth={1}
-              />
-            );
-          })}
-          {/* axis lines */}
-          {axisPoints.map((p, i) => (
-            <line
-              key={i}
-              x1={center}
-              y1={center}
-              x2={p.x}
-              y2={p.y}
-              stroke="rgba(55,53,47,0.12)"
-              strokeWidth={1}
-            />
-          ))}
-          {/* data polygon */}
-          <path
-            d={dataPath}
-            fill="rgba(99,102,241,0.22)"
-            stroke="rgb(99,102,241)"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
-          {dataPoints.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={2.5} fill="rgb(99,102,241)" />
-          ))}
-          {/* labels */}
-          {axes.map((axis, i) => {
-            const a = angleFor(i);
-            const cosA = Math.cos(a);
-            const sinA = Math.sin(a);
-            const lr = radius + labelOffset;
-            const x = center + cosA * lr;
-            const y = center + sinA * lr;
-            return (
-              <text
-                key={i}
-                x={x}
-                y={y}
-                textAnchor={anchorFor(cosA)}
-                dominantBaseline={baselineFor(sinA)}
-                fontSize={11}
-                fontWeight={500}
-                fill="rgb(55,53,47)"
-              >
-                {axis.label}
-              </text>
-            );
-          })}
-        </svg>
-      </div>
-    </div>
-  );
-}
-
 function GithubCard({
   username,
   name,
@@ -1072,8 +870,6 @@ function MessageBubble({ content, role, onLearnMore }: { content: string; role: 
                 linkedin={seg.linkedin}
               />
             );
-          if (seg.type === "skills")
-            return <SkillsCard key={i} categories={seg.categories} />;
           if (seg.type === "card")
             return (
               <BusinessCard
@@ -1091,8 +887,6 @@ function MessageBubble({ content, role, onLearnMore }: { content: string; role: 
             );
           if (seg.type === "message-form")
             return <MessageFormCard key={i} title={seg.title} hint={seg.hint} />;
-          if (seg.type === "skills-radar")
-            return <SkillsRadarCard key={i} title={seg.title} axes={seg.axes} />;
           if (seg.type === "github")
             return (
               <GithubCard
@@ -1180,7 +974,6 @@ export default function WidgetPage() {
   const quickActions = [
     { label: t(locale).quickWork, query: t(locale).quickWorkQuery },
     { label: t(locale).quickExp, query: t(locale).quickExpQuery },
-    { label: t(locale).quickSkills, query: t(locale).quickSkillsQuery },
     { label: t(locale).quickContact, query: t(locale).quickContactQuery },
   ];
 

@@ -3,7 +3,7 @@ import { streamText } from "ai";
 import { loadWikiContext } from "@/lib/wiki-loader";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkDailyBudget } from "@/lib/cost-limit";
-import { loadPersona, loadSocials, loadCard, loadSkills } from "@/lib/knowledge-config";
+import { loadPersona, loadSocials, loadCard } from "@/lib/knowledge-config";
 import { loadGithubSnapshot } from "@/lib/github-sync";
 
 export const runtime = "nodejs";
@@ -106,7 +106,6 @@ export async function POST(req: Request) {
   const personaContent = loadPersona();
   const socialLinks = loadSocials();
   const cardData = loadCard();
-  const skillsData = loadSkills();
   const githubSnapshot = loadGithubSnapshot();
 
   const suggestionsInstruction = `
@@ -142,19 +141,6 @@ Do NOT fabricate names or contact details. The form collects them from the visit
 Only emit this block when the intent is clear; otherwise answer normally.
 
 `;
-
-  const skillsRadarInstruction = skillsData && skillsData.length >= 3
-    ? `Skills radar data:
-${skillsData.map((s) => `- ${s.label}: ${s.value}`).join("\n")}
-When the visitor asks about skills at a glance, skill strengths, a capability overview, or wants to compare skill areas, emit a radar chart using this exact block (values 0-100, at least 3 axes):
-:::skills-radar
-title: <short title in visitor's language>
-axes: <label1>:<value1>, <label2>:<value2>, <label3>:<value3>
-:::
-Use the values above; do not invent new ones. You may still use :::skills for categorized lists when the visitor asks for detail.
-
-`
-    : "";
 
   const githubInstruction = githubSnapshot
     ? `GitHub profile snapshot (use when visitor asks about GitHub, open source, repos, coding activity):
@@ -200,7 +186,6 @@ Use only the data provided above. Do not fabricate repos or stats.
     socialInstruction +
     cardInstruction +
     messageFormInstruction +
-    skillsRadarInstruction +
     githubInstruction;
 
   const noContext = context.trim().length === 0;
@@ -239,15 +224,6 @@ company: <company name>
 role: <job title>
 period: <time range, e.g. 2020 - 2023>
 description: <one sentence summary of responsibilities or achievements>
-:::
-
-When listing skills grouped by category, output one block with category groups separated by a line containing only ---:
-:::skills
-category: <category name>
-items: <comma-separated skills>
----
-category: <another category>
-items: <comma-separated skills>
 :::
 
 Rules:

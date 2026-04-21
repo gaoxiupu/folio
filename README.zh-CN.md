@@ -1,18 +1,18 @@
 # Folio
 
-一个开源的 AI 聊天组件，专为个人作品集设计。把文件放进 `/knowledge`，获得一个 `<script>` 标签，嵌入你的网站后，访客就能向 AI 提问关于你的任何问题——项目经验、技术能力、工作经历等。
+一个开源的 AI 聊天组件，专为个人作品集设计。把文件放进 `/knowledge`，获得一个 `<script>` 标签，嵌入你的网站后，访客就能向 AI 提问关于你的任何问题——项目经验、工作经历等。
 
 ## 工作原理
 
-1. **添加文件** — 将简历、项目文档或任何 `.md` / `.txt` / `.pdf` 放入 `knowledge/` 文件夹。可选添加 `card.json`、`skills.json`、`socials.json` 以启用富交互卡片。
+1. **添加文件** — 将简历、项目文档或任何 `.md` / `.txt` / `.pdf` 放入 `knowledge/` 文件夹。可选添加 `card.json`、`socials.json`、`github.json` 以启用富交互卡片。
 2. **本地运行** — `npm run dev` 会自动将知识文件编译为结构化 wiki 并启动服务器。
 3. **嵌入网站** — 在你的作品集网站中加入一行 `<script>` 标签，访客即可看到悬浮聊天按钮，与 AI 助手对话。
 
-核心理念：不使用传统的分块式 RAG（会把内容碎片化），而是将所有知识文件编译成**结构化 wiki**——按主题组织的、跨文件关联的页面（概述、经历、技能、项目等）。AI 从完整的上下文中回答问题，而非孤立的文本片段。
+核心理念：不使用传统的分块式 RAG（会把内容碎片化），而是将所有知识文件编译成**结构化 wiki**——按主题组织的、跨文件关联的页面（概述、经历、项目等）。AI 从完整的上下文中回答问题，而非孤立的文本片段。
 
 ## 功能特性
 
-- **富交互卡片** — 项目展示、工作经历、技能雷达图、GitHub 主页、数字名片、留言表单
+- **富交互卡片** — 项目展示、工作经历、GitHub 主页、数字名片、留言表单
 - **自动编译 wiki** — 启动时将知识文件编译为结构化 wiki 页面；仅文件变更时重新编译
 - **GitHub 集成** — 自动获取 GitHub 主页、热门仓库和语言分布
 - **多语言支持** — 自动以访客使用的语言回复
@@ -34,7 +34,7 @@ cp .env.example .env
 # 编辑 .env — 填入你的 ARK_API_KEY
 
 # 添加知识文件到 knowledge/
-cp knowledge/persona.md.example knowledge/persona.md
+cp persona.md.example persona.md
 cp knowledge/card.json.example knowledge/card.json
 # ... 编辑为你自己的信息
 
@@ -52,14 +52,13 @@ npm run dev
 
 将以下文件放在 `knowledge/` 目录下：
 
-| 文件 | 用途 | 必需 |
-|------|------|------|
-| `persona.md` | AI 的性格和行为指令 | 否 |
-| `*.pdf` / `*.md` / `*.txt` | 简历、项目文档、任何文本内容 | 至少一个 |
-| `card.json` | 名片数据（姓名、职位、邮箱等） | 否 |
-| `skills.json` | 技能评分（用于雷达图展示） | 否 |
-| `socials.json` | 社交媒体链接 | 否 |
-| `github.json` | GitHub 用户名（用于主页集成） | 否 |
+| 文件 | 位置 | 用途 | 必需 |
+|------|------|------|------|
+| `persona.md` | 根目录 | AI 的性格和行为指令 | 否 |
+| `*.pdf` / `*.md` / `*.txt` | `knowledge/` | 简历、项目文档、任何文本内容 | 至少一个 |
+| `card.json` | `knowledge/` | 名片数据（姓名、职位、邮箱等） | 否 |
+| `socials.json` | `knowledge/` | 社交媒体链接 | 否 |
+| `github.json` | `knowledge/` | GitHub 用户名（用于主页集成） | 否 |
 
 项目提供了示例文件（`*.example`），复制并编辑即可。
 
@@ -67,11 +66,10 @@ npm run dev
 
 ```
 folio/
-├── knowledge/               ← 你的文件放在这里
-│   ├── persona.md
+├── knowledge/               ← 你的内容文件放在这里
 │   ├── card.json
-│   ├── skills.json
 │   └── resume.pdf
+├── persona.md               ← 你的性格人设配置
 ├── wiki/                    ← 自动生成（不入版本库）
 │   ├── index.md
 │   ├── overview.md

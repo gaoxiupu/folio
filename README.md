@@ -1,18 +1,18 @@
 # Folio
 
-An open-source AI chat widget for portfolios. Drop your files into `/knowledge`, get a `<script>` tag that answers visitors' questions about you — your projects, skills, and experience.
+An open-source AI chat widget for portfolios. Drop your files into `/knowledge`, get a `<script>` tag that answers visitors' questions about you — your projects and experience.
 
 ## How it works
 
-1. **Add your files** — Drop resumes, project docs, or any `.md` / `.txt` / `.pdf` into the `knowledge/` folder. Optionally add `card.json`, `skills.json`, `socials.json` for rich interactive cards.
+1. **Add your files** — Drop resumes, project docs, or any `.md` / `.txt` / `.pdf` into the `knowledge/` folder. Optionally add `card.json`, `socials.json`, `github.json` for rich interactive cards.
 2. **Run locally** — `npm run dev` compiles your knowledge into a structured wiki and starts the server.
 3. **Embed anywhere** — Add one `<script>` tag to your portfolio site. Visitors get a floating chat button that opens an AI assistant answering questions about you.
 
-The key insight: instead of chunk-based RAG (which fragments your content), Folio compiles all your knowledge files into a **structured wiki** — cross-referenced pages organized by topic (overview, experience, skills, projects, etc.). The AI answers from this holistic context, not from isolated text chunks.
+The key insight: instead of chunk-based RAG (which fragments your content), Folio compiles all your knowledge files into a **structured wiki** — cross-referenced pages organized by topic (overview, experience, projects, etc.). The AI answers from this holistic context, not from isolated text chunks.
 
 ## Features
 
-- **Rich interactive cards** — Projects, work experience, skills radar, GitHub profile, digital business card, contact form
+- **Rich interactive cards** — Projects, work experience, GitHub profile, digital business card, contact form
 - **Auto-compiled wiki** — Knowledge files are compiled into structured wiki pages at startup; only recompiles when files change
 - **GitHub integration** — Automatically fetches your GitHub profile, top repos, and language distribution
 - **Multi-language** — Responds in the visitor's language automatically
@@ -34,7 +34,7 @@ cp .env.example .env
 # Edit .env — add your ARK_API_KEY
 
 # Add your knowledge files to knowledge/
-cp knowledge/persona.md.example knowledge/persona.md
+cp persona.md.example persona.md
 cp knowledge/card.json.example knowledge/card.json
 # ... edit with your own info
 
@@ -52,14 +52,13 @@ Open `http://localhost:3000` to see the widget, or embed it on your site:
 
 Place these files in the `knowledge/` directory:
 
-| File | Purpose | Required |
-|------|---------|----------|
-| `persona.md` | Personality and behavior instructions for the AI | No |
-| `*.pdf` / `*.md` / `*.txt` | Resumes, project docs, any text content | At least one |
-| `card.json` | Business card data (name, title, email, etc.) | No |
-| `skills.json` | Skill ratings for radar chart display | No |
-| `socials.json` | Social media profile links | No |
-| `github.json` | GitHub username for profile integration | No |
+| File | Location | Purpose | Required |
+|------|----------|---------|----------|
+| `persona.md` | Root | Personality and behavior instructions for the AI | No |
+| `*.pdf` / `*.md` / `*.txt` | `knowledge/` | Resumes, project docs, any text content | At least one |
+| `card.json` | `knowledge/` | Business card data (name, title, email, etc.) | No |
+| `socials.json` | `knowledge/` | Social media profile links | No |
+| `github.json` | `knowledge/` | GitHub username for profile integration | No |
 
 Example files are provided (`*.example`) — copy and edit them.
 
@@ -67,11 +66,10 @@ Example files are provided (`*.example`) — copy and edit them.
 
 ```
 folio/
-├── knowledge/               ← your files go here
-│   ├── persona.md
+├── knowledge/               ← your content files go here
 │   ├── card.json
-│   ├── skills.json
 │   └── resume.pdf
+├── persona.md               ← your personality config
 ├── wiki/                    ← auto-generated (gitignored)
 │   ├── index.md
 │   ├── overview.md

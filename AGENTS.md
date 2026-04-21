@@ -46,7 +46,7 @@ folio/
 │       ├── wiki-loader.ts           ← loads wiki pages into prompt context
 │       └── knowledge-config.ts      ← loads JSON configs for rich cards
 ├── .env.example
-└── CLAUDE.md
+└── AGENTS.md
 ```
 
 ## Environment variables

@@ -31,7 +31,8 @@ function getKnowledgeFiles(): string[] {
       (f) =>
         COMPILE_EXTENSIONS.test(f) &&
         !f.startsWith(".") &&
-        !f.endsWith(".example"),
+        !f.endsWith(".example") &&
+        f.toLowerCase() !== "example.md",
     );
 }
 
@@ -101,8 +102,8 @@ function parsePages(raw: string): Map<string, string> {
 const COMPILER_SYSTEM = `你是一个知识库编译器。你的任务是将原始文件编译为一组结构化的 wiki 页面。
 
 规则：
-1. 按主题组织页面（个人概述、工作经历、项目经验、技能专长、教育背景、联系方式等）
-2. 跨文件关联信息（比如简历中的项目与技能评分的对应关系）
+1. 按主题组织页面（个人概述、工作经历、项目经验、教育背景、联系方式等）
+2. 跨文件关联信息（比如简历中的项目与相关经历的对应关系）
 3. 保留具体数据（数字、时间、公司名等不要模糊化）
 4. 去除格式噪音，生成干净的 markdown
 5. 每个页面保持精炼，避免冗余重复
