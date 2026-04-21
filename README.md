@@ -125,6 +125,23 @@ visitor             ← AI response with rich cards
 | `DAILY_API_BUDGET` | No | 500 | Total daily API request limit |
 | `GITHUB_TOKEN` | No | — | GitHub token for higher API rate limits |
 
+### Automatic Deployment
+
+This repo includes a GitHub Actions workflow at `.github/workflows/deploy-worker.yml`.
+Push to the `personal-deploy` branch, or run the workflow manually from the GitHub Actions tab, and it will build with OpenNext and deploy to Cloudflare Workers.
+
+Add these GitHub repository secrets before enabling it:
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `CLOUDFLARE_API_TOKEN` | Yes | Allows GitHub Actions to deploy with Wrangler |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes | Selects the Cloudflare account to deploy into |
+| `ARK_API_KEY` | Yes | Runtime API key for chat responses |
+| `NEXT_PUBLIC_BASE_URL` | Yes | Public deployment URL used by the widget embed script |
+
+This setup follows Cloudflare's official GitHub Actions flow using `cloudflare/wrangler-action@v3`.
+If you want to lock down iframe embedding later, add `ALLOWED_EMBED_DOMAINS` in the Cloudflare dashboard or extend the workflow to sync it as a Worker secret.
+
 ### Tech Stack
 
 - **Next.js 14** (App Router) + React 18 + TypeScript
@@ -261,6 +278,23 @@ visitor             ← AI 回复 + 富交互卡片
 | `RATE_LIMIT_PER_DAY` | No | 100 | 每 IP 每日请求限制 |
 | `DAILY_API_BUDGET` | No | 500 | 全局每日 API 请求上限 |
 | `GITHUB_TOKEN` | 否 | — | GitHub Token（提高 API 频率限制） |
+
+### 自动部署
+
+仓库已经包含 GitHub Actions 工作流 `.github/workflows/deploy-worker.yml`。
+当你推送到 `personal-deploy` 分支，或者在 GitHub Actions 页面手动触发时，它会自动执行 OpenNext 构建并部署到 Cloudflare Workers。
+
+启用前请先在 GitHub 仓库里配置这些 Secrets：
+
+| Secret | 必需 | 作用 |
+|--------|------|------|
+| `CLOUDFLARE_API_TOKEN` | 是 | 允许 GitHub Actions 通过 Wrangler 部署 |
+| `CLOUDFLARE_ACCOUNT_ID` | 是 | 指定部署到哪个 Cloudflare 账号 |
+| `ARK_API_KEY` | 是 | 聊天接口运行时所需的 API Key |
+| `NEXT_PUBLIC_BASE_URL` | 是 | Widget 脚本生成 iframe 地址时使用的公网 URL |
+
+这套配置基于 Cloudflare 官方推荐的 `cloudflare/wrangler-action@v3` 工作流。
+如果你之后想收紧 iframe 嵌入范围，可以再在 Cloudflare 面板里添加 `ALLOWED_EMBED_DOMAINS`，或把它补进这个工作流同步到 Worker secret。
 
 ### 技术栈
 

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useChat } from "ai/react";
-import Image from "next/image";
 import {
   ChevronRight,
   Check,
@@ -465,7 +464,7 @@ function ContactCard({
     <div className="rounded-lg border border-folio-border bg-folio-surface px-3 py-3 my-1 first:mt-0 last:mb-0">
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
-          <Image src="/avatar.jpg" alt={name} width={36} height={36} className="w-full h-full object-cover" />
+          <Avatar alt={name} size={36} />
         </div>
         <p className="text-[13px] font-semibold text-folio-ink leading-snug">
           {name}
@@ -558,7 +557,7 @@ function BusinessCard({
       {/* Header */}
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
-          <Image src="/avatar.jpg" alt={name} width={36} height={36} className="w-full h-full object-cover" />
+          <Avatar alt={name} size={36} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-semibold text-folio-ink leading-snug">
@@ -934,6 +933,27 @@ function TypingIndicator() {
   );
 }
 
+function Avatar({
+  alt,
+  size,
+}: {
+  alt: string;
+  size: number;
+}) {
+  const initial = alt.trim().charAt(0).toUpperCase() || "P";
+
+  return (
+    <div
+      role="img"
+      aria-label={alt}
+      className="flex h-full w-full items-center justify-center rounded-full bg-[#37352F] text-white"
+      style={{ fontSize: Math.max(12, Math.floor(size * 0.42)) }}
+    >
+      {initial}
+    </div>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function WidgetPage() {
@@ -983,7 +1003,7 @@ export default function WidgetPage() {
       {/* Header */}
       <div className="shrink-0 px-4 py-3 border-b border-folio-border bg-white flex items-center gap-3">
         <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-          <Image src="/avatar.jpg" alt="PaulBot" width={32} height={32} className="w-full h-full object-cover" />
+          <Avatar alt="PaulBot" size={32} />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-[13px] font-semibold text-folio-ink">
@@ -1008,7 +1028,7 @@ export default function WidgetPage() {
         {isEmpty ? (
           <div className="flex justify-start gap-2 mt-4">
             <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 mt-0.5">
-              <Image src="/avatar.jpg" alt="PaulBot" width={28} height={28} className="w-full h-full object-cover" />
+              <Avatar alt="PaulBot" size={28} />
             </div>
             <div className="rounded-lg bg-folio-surface border border-folio-border text-folio-ink px-3.5 py-2 text-[13px] leading-relaxed max-w-[88%]">
               <p dangerouslySetInnerHTML={{ __html: t(locale).greeting1 }} />

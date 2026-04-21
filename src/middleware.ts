@@ -3,6 +3,16 @@ import type { NextRequest } from "next/server";
 
 // ── Middleware: Origin check + CSP headers ────────────────────────────────────
 
+function normalizeOrigin(value: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -13,44 +23,42 @@ export function middleware(request: NextRequest) {
   ) {
     const origin = request.headers.get("origin");
     const referer = request.headers.get("referer");
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL?.trim() || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
     const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const allAllowed = [baseUrl, ...allowedOrigins].filter(Boolean);
+    const requestOrigin = request.nextUrl.origin;
+    const allAllowed = [
+      requestOrigin,
+      normalizeOrigin(baseUrl ?? null),
+      ...allowedOrigins.map((allowed) => normalizeOrigin(allowed)),
+    ].filter((value): value is string => Boolean(value));
 
     if (origin) {
-      if (
-        !allAllowed.some(
-          (allowed) => origin === allowed || origin.startsWith(allowed),
-        )
-      ) {
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (!normalizedOrigin || !allAllowed.includes(normalizedOrigin)) {
         return NextResponse.json(
           { error: "Request not allowed from this origin." },
           { status: 403 },
         );
       }
     } else if (referer) {
-      try {
-        const refererOrigin = new URL(referer).origin;
-        if (
-          !allAllowed.some(
-            (allowed) =>
-              refererOrigin === new URL(allowed).origin,
-          )
-        ) {
-          return NextResponse.json(
-            { error: "Request not allowed from this origin." },
-            { status: 403 },
-          );
-        }
-      } catch {
+      const refererOrigin = normalizeOrigin(referer);
+
+      if (!refererOrigin) {
         return NextResponse.json(
           { error: "Invalid request." },
           { status: 400 },
+        );
+      }
+
+      if (!allAllowed.includes(refererOrigin)) {
+        return NextResponse.json(
+          { error: "Request not allowed from this origin." },
+          { status: 403 },
         );
       }
     } else {
@@ -80,7 +88,6 @@ export function middleware(request: NextRequest) {
       `frame-ancestors ${allowedDomains}`,
     );
     response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("X-Frame-Options", "SAMEORIGIN");
     return response;
   }
 
